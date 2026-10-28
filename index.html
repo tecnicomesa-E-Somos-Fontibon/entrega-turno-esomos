@@ -1,0 +1,1904 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Entrega de Turno ITS / TICS (Cloud Sync) - E-Somos Fontibón</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        :root {
+            --esomos-dark: #1b5e20;
+            --esomos-main: #2e7d32;
+            --esomos-light: #e8f5e9;
+            --excel-green: #8ed973;
+            --excel-cctv: #00ff00;
+            --excel-gray: #d9d9d9;
+            --bg-page: #f0f2f5;
+        }
+
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Calibri, Arial, sans-serif;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-page);
+            color: #1c1e21;
+        }
+
+        /* Top Bar */
+        .topbar {
+            background: linear-gradient(135deg, #144d18, #2e7d32);
+            color: #fff;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.22);
+        }
+
+        .topbar-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .topbar-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+
+        /* Cloud Status Pill */
+        .cloud-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 11px;
+            border-radius: 20px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            cursor: pointer;
+            background: rgba(0,0,0,0.28);
+            border: 1px solid rgba(255,255,255,0.35);
+            color: #fff;
+            transition: all 0.2s ease;
+        }
+
+        .cloud-pill:hover {
+            background: rgba(0,0,0,0.42);
+        }
+
+        .cloud-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background-color: #ff9800;
+            display: inline-block;
+        }
+
+        .cloud-dot.online {
+            background-color: #00e676;
+            box-shadow: 0 0 6px #00e676;
+        }
+
+        .cloud-dot.syncing {
+            background-color: #29b6f6;
+            box-shadow: 0 0 6px #29b6f6;
+        }
+
+        .topbar-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 7px;
+        }
+
+        .btn {
+            border: none;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.15s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.05);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-send-auto {
+            background-color: #ffca28;
+            color: #111;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+
+        .btn-gmail {
+            background-color: #00e676;
+            color: #052e16;
+        }
+
+        .btn-pdf {
+            background-color: #ffffff;
+            color: #1b5e20;
+        }
+
+        .btn-outline-light {
+            background-color: rgba(255,255,255,0.14);
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.4);
+        }
+
+        .btn-danger {
+            background-color: #ef5350;
+            color: #fff;
+        }
+
+        .btn-add {
+            background-color: #2e7d32;
+            color: white;
+            width: 100%;
+            justify-content: center;
+            padding: 10px;
+            font-size: 0.88rem;
+            margin-top: 6px;
+        }
+
+        /* Main Workspace */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 455px 1fr;
+            gap: 20px;
+            padding: 18px;
+            max-width: 1850px;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 1180px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Left Sidebar Form */
+        .sidebar {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            padding: 16px;
+            max-height: calc(100vh - 80px);
+            overflow-y: auto;
+        }
+
+        .card-box {
+            border: 1px solid #dce1e7;
+            border-radius: 8px;
+            padding: 14px;
+            margin-bottom: 16px;
+            background: #fafbfc;
+        }
+
+        .card-box h3 {
+            margin: 0 0 12px 0;
+            font-size: 0.94rem;
+            color: #1b5e20;
+            border-bottom: 2px solid #a5d6a7;
+            padding-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .field-group {
+            margin-bottom: 10px;
+        }
+
+        .field-row-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .field-row-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        input[type="text"],
+        input[type="email"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 7px 9px;
+            border: 1px solid #cbd2d9;
+            border-radius: 5px;
+            font-size: 0.85rem;
+            background: #fff;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #2e7d32;
+            box-shadow: 0 0 0 2px rgba(46,125,50,0.18);
+        }
+
+        .small-hint {
+            font-size: 0.72rem;
+            color: #666;
+            margin-top: 3px;
+        }
+
+        /* Section Selector Buttons */
+        .section-nav {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+
+        .sec-btn {
+            padding: 8px 8px;
+            font-size: 0.76rem;
+            font-weight: 700;
+            border: 1px solid #2e7d32;
+            background: #fff;
+            color: #1b5e20;
+            border-radius: 5px;
+            cursor: pointer;
+            text-align: left;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .sec-btn.active {
+            background: #2e7d32;
+            color: #fff;
+        }
+
+        .sec-btn .badge {
+            background: #e8f5e9;
+            color: #1b5e20;
+            border-radius: 10px;
+            padding: 1px 6px;
+            font-size: 0.7rem;
+        }
+
+        .sec-btn.active .badge {
+            background: #fff;
+            color: #1b5e20;
+        }
+
+        /* Added Rows List inside Form */
+        .rows-manager {
+            margin-top: 12px;
+            border-top: 1px dashed #cbd2d9;
+            padding-top: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .row-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-left: 4px solid #43a047;
+            border-radius: 4px;
+            padding: 5px 8px;
+            margin-bottom: 5px;
+            font-size: 0.77rem;
+            gap: 6px;
+        }
+
+        .row-item-text {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex: 1;
+        }
+
+        .row-item-actions {
+            display: flex;
+            gap: 4px;
+        }
+
+        .row-btn-edit {
+            background: #e3f2fd;
+            color: #1565c0;
+            border: 1px solid #90caf9;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            padding: 2px 6px;
+            font-size: 0.74rem;
+        }
+
+        .row-item-del {
+            background: #ffebee;
+            color: #c62828;
+            border: 1px solid #ef9a9a;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            padding: 2px 6px;
+            font-size: 0.74rem;
+        }
+
+        /* Signature Upload List */
+        .sig-upload-box {
+            border: 2px dashed #81c784;
+            background: #f1f8e9;
+            padding: 10px;
+            border-radius: 6px;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .sig-saved-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            background: #fff;
+            border: 1px solid #ddd;
+            padding: 6px 8px;
+            border-radius: 5px;
+            margin-bottom: 6px;
+            font-size: 0.8rem;
+        }
+
+        .sig-saved-item img {
+            height: 36px;
+            max-width: 110px;
+            object-fit: contain;
+            border: 1px solid #eee;
+            background: #fafafa;
+        }
+
+        /* Right Preview Area */
+        .preview-pane {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.09);
+            padding: 24px;
+            overflow-x: auto;
+        }
+
+        .email-envelope-bar {
+            background: #f8f9fa;
+            border: 1px solid #dadce0;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 18px;
+            font-size: 0.85rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .email-envelope-row {
+            margin: 4px 0;
+            display: flex;
+            gap: 8px;
+        }
+
+        .email-envelope-label {
+            font-weight: 700;
+            color: #5f6368;
+            min-width: 75px;
+        }
+
+        /* Printable / Email Body Content */
+        #email-render-root {
+            background: #ffffff;
+            color: #000000;
+            max-width: 1020px;
+            margin: 0 auto;
+            font-family: Calibri, Arial, sans-serif;
+            font-size: 11pt;
+        }
+
+        /* Modal for Cloud + Auto-Email Setup */
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.58);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: 20px;
+        }
+
+        .modal-card {
+            background: #fff;
+            max-width: 740px;
+            width: 100%;
+            border-radius: 10px;
+            padding: 22px;
+            max-height: 92vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .code-snippet {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 12px;
+            border-radius: 6px;
+            font-family: Consolas, monospace;
+            font-size: 0.76rem;
+            overflow-x: auto;
+            white-space: pre;
+            margin: 8px 0;
+        }
+
+        /* Toast */
+        #toast-msg {
+            position: fixed;
+            bottom: 22px;
+            right: 22px;
+            background: #1b5e20;
+            color: #fff;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.25);
+            display: none;
+            z-index: 3000;
+        }
+
+        @media print {
+            body {
+                background: #fff;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .topbar, .sidebar, .email-envelope-bar, #toast-msg, .modal-backdrop {
+                display: none !important;
+            }
+            .main-grid {
+                display: block;
+                padding: 0;
+            }
+            .preview-pane {
+                box-shadow: none;
+                padding: 0;
+            }
+            #email-render-root {
+                max-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- TOP NAVIGATION BAR -->
+    <header class="topbar">
+        <div class="topbar-left">
+            <div class="topbar-title">
+                <span>🚌</span>
+                <span>Entrega de Turno | E-Somos Fontibón</span>
+            </div>
+            <!-- Estado de Nube en Tiempo Real -->
+            <div class="cloud-pill" onclick="openCloudModal()" title="Haz clic para configurar o revisar la sincronización en la nube">
+                <span class="cloud-dot" id="cloudDot"></span>
+                <span id="cloudStatusText">Modo Local (Sin Nube)</span>
+            </div>
+        </div>
+
+        <div class="topbar-actions">
+            <button class="btn btn-outline-light" onclick="pullFromCloud(true)" title="Traer los últimos cambios guardados desde otro computador">
+                🔄 Sincronizar Nube
+            </button>
+            <button class="btn btn-outline-light" onclick="openCloudModal()">
+                ☁️ Configurar Nube / Correo
+            </button>
+            <button class="btn btn-outline-light" onclick="loadTemplateExample()">
+                📋 Ejemplo
+            </button>
+            <button class="btn btn-danger" onclick="clearAllTables()">
+                🗑️ Vaciar
+            </button>
+            <button class="btn btn-gmail" onclick="copyAndOpenGmail()">
+                📧 1. Copiar y Abrir Gmail
+            </button>
+            <button class="btn btn-send-auto" onclick="sendEmailAutomatically()">
+                🚀 2. Enviar Correo Automático
+            </button>
+            <button class="btn btn-pdf" onclick="downloadPDF()">
+                📄 PDF
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN SPLIT WORKSPACE -->
+    <div class="main-grid">
+
+        <!-- PANEL IZQUIERDO: FORMULARIO -->
+        <aside class="sidebar">
+
+            <!-- PASO 1: DATOS DE CORREO Y SALUDO -->
+            <div class="card-box">
+                <h3>1. Datos de Envío del Correo</h3>
+                <div class="field-group">
+                    <label>Cuenta Remitente (Mesa de Ayuda)</label>
+                    <input type="email" id="inpFrom" value="tecnicomesaits@e-somos.co" oninput="onEnvelopeChange()">
+                </div>
+                <div class="field-row-2">
+                    <div class="field-group">
+                        <label>Para (Correo de tu Jefe)</label>
+                        <input type="text" id="inpTo" value="jsierra@e-somos.co" oninput="onEnvelopeChange()">
+                    </div>
+                    <div class="field-group">
+                        <label>CC (Opcional)</label>
+                        <input type="text" id="inpCc" placeholder="ej: copia@e-somos.co" oninput="onEnvelopeChange()">
+                    </div>
+                </div>
+                <div class="field-row-2">
+                    <div class="field-group">
+                        <label>Fecha del Turno</label>
+                        <input type="text" id="inpDate" value="28/10/2026" oninput="syncSubjectDate()">
+                    </div>
+                    <div class="field-group">
+                        <label>Asunto del Correo</label>
+                        <input type="text" id="inpSubject" value="Entrega de turno oficina 28/10/2026" oninput="onEnvelopeChange()">
+                    </div>
+                </div>
+                <div class="field-group">
+                    <label>Saludo Inicial (antes del recuadro verde)</label>
+                    <textarea id="inpGreeting" rows="2" oninput="onEnvelopeChange()">Cordial saludo.</textarea>
+                </div>
+            </div>
+
+            <!-- PASO 2: FORMULARIO DE LA TABLA VERDE VERTICAL -->
+            <div class="card-box">
+                <h3>
+                    <span>2. Rellenar Plantilla Verde Vertical</span>
+                    <label style="font-weight:normal;font-size:0.75rem;display:flex;align-items:center;gap:4px;margin:0;cursor:pointer;">
+                        <input type="checkbox" id="chkNeonCctv" checked onchange="onEnvelopeChange()">
+                        Verde CCTV original
+                    </label>
+                </h3>
+
+                <div class="section-nav" id="secNav">
+                    <button class="sec-btn active" onclick="switchSection('flota')">
+                        <span>1. Inspección Flota</span>
+                        <span class="badge" id="bdg-flota">0</span>
+                    </button>
+                    <button class="sec-btn" onclick="switchSection('preventivos')">
+                        <span>2. Mant. Preventivos</span>
+                        <span class="badge" id="bdg-preventivos">0</span>
+                    </button>
+                    <button class="sec-btn" onclick="switchSection('cctv')">
+                        <span>3. CCTV</span>
+                        <span class="badge" id="bdg-cctv">0</span>
+                    </button>
+                    <button class="sec-btn" onclick="switchSection('intervenciones')">
+                        <span>4. Intervenciones</span>
+                        <span class="badge" id="bdg-intervenciones">0</span>
+                    </button>
+                    <button class="sec-btn" onclick="switchSection('pendientes_its')">
+                        <span>5. Pendientes (ITS)</span>
+                        <span class="badge" id="bdg-pendientes_its">0</span>
+                    </button>
+                    <button class="sec-btn" onclick="switchSection('tics')">
+                        <span>6. TICS</span>
+                        <span class="badge" id="bdg-tics">0</span>
+                    </button>
+                    <button class="sec-btn" style="grid-column: 1 / -1;" onclick="switchSection('pendientes_tics')">
+                        <span>7. Pendientes (Final debajo de TICS)</span>
+                        <span class="badge" id="bdg-pendientes_tics">0</span>
+                    </button>
+                </div>
+
+                <!-- Dynamic Section Inputs -->
+                <div id="sectionFormInputs"></div>
+
+                <!-- List of Added Rows in Active Section -->
+                <div class="rows-manager" id="sectionRowsList"></div>
+            </div>
+
+            <!-- PASO 3: CIERRE Y CARGA DE FIRMAS EN PNG -->
+            <div class="card-box">
+                <h3>3. Despedida y Firmas (.PNG)</h3>
+                <div class="field-group">
+                    <label>Texto después del recuadro verde</label>
+                    <textarea id="inpClosing" rows="2" oninput="onEnvelopeChange()">Quedamos atentos a sus comentarios.
+Cordialmente,</textarea>
+                </div>
+
+                <div class="sig-upload-box">
+                    <label for="sigFileInput" style="cursor:pointer;color:#1b5e20;font-size:0.84rem;margin:0;">
+                        🖼️ <strong>Haz clic aquí para subir imagen(es) de firma (.PNG / .JPG)</strong>
+                    </label>
+                    <input type="file" id="sigFileInput" accept="image/png,image/jpeg,image/webp" multiple style="display:none;" onchange="handleSignatureUpload(event)">
+                    <div class="small-hint">Las firmas también se sincronizan en la nube para que salgan en cualquier equipo.</div>
+                </div>
+
+                <div class="field-row-2" style="align-items:center;margin-bottom:8px;">
+                    <div class="field-group" style="margin:0;">
+                        <label>Tamaño de Firmas PNG: <span id="sigSizeLabel">280px</span></label>
+                        <input type="range" id="sigWidthSlider" min="150" max="500" value="280" oninput="updateSigSize(this.value)">
+                    </div>
+                    <div class="field-group" style="margin:0;">
+                        <label>Disposición de Firmas</label>
+                        <select id="sigLayoutSelect" onchange="onEnvelopeChange()">
+                            <option value="horizontal">Lado a lado (Horizontal)</option>
+                            <option value="vertical">Una debajo de otra (Vertical)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="savedSignaturesList"></div>
+            </div>
+
+        </aside>
+
+        <!-- PANEL DERECHO: VISTA PREVIA EXACTA DEL CORREO / PDF -->
+        <main class="preview-pane">
+            <div class="email-envelope-bar">
+                <div>
+                    <div class="email-envelope-row">
+                        <span class="email-envelope-label">De:</span>
+                        <span id="envFrom">tecnicomesaits@e-somos.co</span>
+                    </div>
+                    <div class="email-envelope-row">
+                        <span class="email-envelope-label">Para:</span>
+                        <span id="envTo" style="font-weight:600;color:#1b5e20;">jsierra@e-somos.co</span>
+                    </div>
+                    <div class="email-envelope-row" id="envCcRow" style="display:none;">
+                        <span class="email-envelope-label">CC:</span>
+                        <span id="envCc"></span>
+                    </div>
+                    <div class="email-envelope-row">
+                        <span class="email-envelope-label">Asunto:</span>
+                        <span id="envSubject" style="font-weight:700;">Entrega de turno oficina 28/10/2026</span>
+                    </div>
+                </div>
+                <div style="text-align:right;font-size:0.76rem;color:#555;">
+                    <div id="lastSyncInfo">Última edición local</div>
+                    <label style="display:inline-flex;align-items:center;gap:4px;font-weight:normal;margin-top:4px;cursor:pointer;">
+                        <input type="checkbox" id="chkAutoPoll" checked>
+                        Auto-actualizar cada 15s entre equipos
+                    </label>
+                </div>
+            </div>
+
+            <!-- CONTENIDO REAL QUE VA EN EL CUERPO DEL CORREO Y EN EL PDF -->
+            <div id="email-render-root"></div>
+        </main>
+
+    </div>
+
+    <!-- MODAL DE CONFIGURACIÓN DE NUBE + ENVÍO AUTOMÁTICO (GOOGLE APPS SCRIPT) -->
+    <div class="modal-backdrop" id="cloudModal">
+        <div class="modal-card">
+            <h3 style="margin-top:0;color:#1b5e20;">☁️ Configurar Sincronización entre Equipos (GitHub) + Envío Gmail</h3>
+            <p style="font-size:0.84rem;line-height:1.45;color:#333;">
+                Como GitHub Pages aloja páginas estáticas, este código de <strong>Google Apps Script</strong> hace dos cosas al mismo tiempo usando la cuenta de ustedes (<code>tecnicomesaits@e-somos.co</code>):
+                <br>1️⃣ <strong>Guarda en la nube de Google Drive</strong> todo lo que vayas llenando en el PC de la oficina para que al abrir el link de GitHub en tu portátil cargue exactamente igual.
+                <br>2️⃣ <strong>Envía el correo directamente</strong> a tu jefe cuando presiones el botón amarillo.
+            </p>
+            <ol style="font-size:0.81rem;line-height:1.48;color:#222;padding-left:20px;">
+                <li>Abre <a href="https://script.google.com" target="_blank" style="color:#1b5e20;font-weight:bold;">https://script.google.com</a> con el correo de la mesa de ayuda y crea un <strong>"Nuevo proyecto"</strong>.</li>
+                <li>Borra lo que aparezca y pega este código completo:
+                    <div class="code-snippet">var FILE_NAME = "esomos_entrega_turno_cloud_state.json";
+
+function getOrCreateFile() {
+  var files = DriveApp.getFilesByName(FILE_NAME);
+  if (files.hasNext()) return files.next();
+  return DriveApp.createFile(FILE_NAME, "{}", MimeType.PLAIN_TEXT);
+}
+
+function doGet(e) {
+  var file = getOrCreateFile();
+  var content = file.getBlob().getDataAsString() || "{}";
+  return ContentService.createTextOutput(content)
+                       .setMimeType(ContentService.MimeType.JSON);
+}
+
+function doPost(e) {
+  var data = JSON.parse(e.postData.contents);
+
+  // 1. Guardar estado sincronizado entre PC de oficina y portátil
+  if (data.action === "save_state") {
+    var file = getOrCreateFile();
+    file.setContent(JSON.stringify(data.state));
+    return ContentService.createTextOutput(JSON.stringify({status: "saved", updatedAt: data.state.updatedAt}))
+                         .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  // 2. Enviar el correo de entrega de turno directamente al jefe
+  var inlineImages = {};
+  if (data.images) {
+    for (var key in data.images) {
+      var bytes = Utilities.base64Decode(data.images[key].base64);
+      inlineImages[key] = Utilities.newBlob(bytes, data.images[key].mimeType, key);
+    }
+  }
+  MailApp.sendEmail({
+    to: data.to,
+    cc: data.cc || "",
+    subject: data.subject,
+    htmlBody: data.htmlBody,
+    inlineImages: inlineImages
+  });
+  return ContentService.createTextOutput(JSON.stringify({status: "sent"}))
+                       .setMimeType(ContentService.MimeType.JSON);
+}</div>
+                </li>
+                <li>Haz clic arriba a la derecha en <strong>Implementar &rarr; Nueva implementación</strong> (o <em>Gestionar implementaciones &rarr; Editar &rarr; Nueva versión</em> si ya tenías una).</li>
+                <li>Elige <strong>Aplicación web</strong>, en <em>"Quién tiene acceso"</em> selecciona <strong>Cualquier persona</strong> y dale a <strong>Implementar</strong>.</li>
+                <li>Pega la <strong>URL de la aplicación web</strong> aquí abajo (o directamente en la línea <code>DEFAULT_CLOUD_URL</code> del código antes de subirlo a GitHub):</li>
+            </ol>
+            <div class="field-group">
+                <label>URL de tu Google Apps Script:</label>
+                <input type="text" id="inpWebhookUrl" placeholder="https://script.google.com/macros/s/AKfycb.../exec">
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap;">
+                <button class="btn btn-outline-light" style="background:#e8f5e9;color:#1b5e20;border-color:#2e7d32;" onclick="pushToCloud(true)">
+                    ⬆️ Forzar Subida de mis datos actuales a la Nube
+                </button>
+                <div style="display:flex;gap:8px;">
+                    <button class="btn btn-danger" onclick="closeCloudModal()">Cerrar</button>
+                    <button class="btn btn-gmail" onclick="saveWebhookUrl()">💾 Guardar y Sincronizar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-msg">Listo</div>
+
+    <script>
+        // =========================================================================
+        // TIP PARA GITHUB: Si pegas tu URL de Google Apps Script dentro de las
+        // comillas de DEFAULT_CLOUD_URL antes de subir el archivo a GitHub,
+        // cualquier equipo o portátil que abra el link de GitHub se conectará solo
+        // sin tener que configurar nada.
+        // =========================================================================
+        const DEFAULT_CLOUD_URL = "https://script.google.com/a/macros/e-somos.co/s/AKfycbyBW1SY00Do0rPx5aAOjITi6RtswPsgsRBkxXimfXXnpk-YOl8a_YGDkclkgG73DjI0/exec";
+
+        let activeSection = 'flota';
+        let sigWidthPx = 280;
+        let lastUpdatedAt = 0;
+        let cloudSaveTimer = null;
+        let isPulling = false;
+
+        let tableData = {
+            flota: [],
+            preventivos: [],
+            cctv: [],
+            intervenciones: [],
+            pendientes_its: [],
+            tics: [],
+            pendientes_tics: []
+        };
+
+        let savedSignatures = [];
+
+        function getCloudUrl() {
+            return (localStorage.getItem('esomos_gas_webhook_url') || DEFAULT_CLOUD_URL || '').trim();
+        }
+
+        function setCloudStatus(state, text) {
+            const dot = document.getElementById('cloudDot');
+            const lbl = document.getElementById('cloudStatusText');
+            dot.className = 'cloud-dot';
+            if (state === 'online') dot.classList.add('online');
+            else if (state === 'syncing') dot.classList.add('syncing');
+            lbl.textContent = text;
+        }
+
+        function formatMovil(val) {
+            let txt = (val || '').trim().toUpperCase();
+            if (!txt) return '';
+            if (/^\d{4}$/.test(txt)) {
+                return 'Z66-' + txt;
+            }
+            return txt;
+        }
+
+        function splitMoviles(raw) {
+            let cleaned = (raw || '').trim();
+            if (!cleaned) return [''];
+            return cleaned.split(/[,;\n]+/).map(x => formatMovil(x)).filter(Boolean);
+        }
+
+        // =========================================================================
+        // EMPAQUETAR Y DESEMPAQUETAR ESTADO COMPLETO (PARA LOCAL Y NUBE)
+        // =========================================================================
+        function buildFullStateObject() {
+            return {
+                updatedAt: lastUpdatedAt,
+                envelope: {
+                    from: document.getElementById('inpFrom').value,
+                    to: document.getElementById('inpTo').value,
+                    cc: document.getElementById('inpCc').value,
+                    date: document.getElementById('inpDate').value,
+                    subject: document.getElementById('inpSubject').value,
+                    greeting: document.getElementById('inpGreeting').value,
+                    closing: document.getElementById('inpClosing').value,
+                    neonCctv: document.getElementById('chkNeonCctv').checked,
+                    sigWidthPx: sigWidthPx,
+                    sigLayout: document.getElementById('sigLayoutSelect').value
+                },
+                tableData: tableData,
+                savedSignatures: savedSignatures
+            };
+        }
+
+        function applyFullStateObject(stateObj) {
+            if (!stateObj || typeof stateObj !== 'object') return;
+            isPulling = true;
+            try {
+                if (stateObj.updatedAt) {
+                    lastUpdatedAt = stateObj.updatedAt;
+                }
+                if (stateObj.envelope) {
+                    const env = stateObj.envelope;
+                    if (env.from !== undefined) document.getElementById('inpFrom').value = env.from;
+                    if (env.to !== undefined) document.getElementById('inpTo').value = env.to;
+                    if (env.cc !== undefined) document.getElementById('inpCc').value = env.cc;
+                    if (env.date !== undefined) document.getElementById('inpDate').value = env.date;
+                    if (env.subject !== undefined) document.getElementById('inpSubject').value = env.subject;
+                    if (env.greeting !== undefined) document.getElementById('inpGreeting').value = env.greeting;
+                    if (env.closing !== undefined) document.getElementById('inpClosing').value = env.closing;
+                    if (env.neonCctv !== undefined) document.getElementById('chkNeonCctv').checked = !!env.neonCctv;
+                    if (env.sigWidthPx !== undefined) {
+                        sigWidthPx = parseInt(env.sigWidthPx, 10) || 280;
+                        document.getElementById('sigWidthSlider').value = sigWidthPx;
+                        document.getElementById('sigSizeLabel').textContent = sigWidthPx + 'px';
+                    }
+                    if (env.sigLayout !== undefined) {
+                        document.getElementById('sigLayoutSelect').value = env.sigLayout;
+                    }
+                }
+                if (stateObj.tableData) {
+                    tableData = Object.assign({
+                        flota: [],
+                        preventivos: [],
+                        cctv: [],
+                        intervenciones: [],
+                        pendientes_its: [],
+                        tics: [],
+                        pendientes_tics: []
+                    }, stateObj.tableData);
+                }
+                if (Array.isArray(stateObj.savedSignatures)) {
+                    savedSignatures = stateObj.savedSignatures;
+                }
+
+                syncEnvelopeUI();
+                updateBadges();
+                renderSectionRowsList();
+                renderSavedSignaturesList();
+                renderEmailPreview();
+                saveToLocalMirror();
+
+                if (lastUpdatedAt > 0) {
+                    const dt = new Date(lastUpdatedAt);
+                    document.getElementById('lastSyncInfo').textContent = 'Última edición: ' + dt.toLocaleTimeString();
+                }
+            } finally {
+                isPulling = false;
+            }
+        }
+
+        function saveToLocalMirror() {
+            try {
+                localStorage.setItem('esomos_cloud_mirror_v3', JSON.stringify(buildFullStateObject()));
+            } catch (e) {}
+        }
+
+        // =========================================================================
+        // SINCRONIZACIÓN EN LA NUBE (PUSH & PULL ENTRE EQUIPOS)
+        // =========================================================================
+        function scheduleCloudSave() {
+            if (isPulling) return;
+            lastUpdatedAt = Date.now();
+            const dt = new Date(lastUpdatedAt);
+            document.getElementById('lastSyncInfo').textContent = 'Editado: ' + dt.toLocaleTimeString();
+            saveToLocalMirror();
+
+            const url = getCloudUrl();
+            if (!url) {
+                setCloudStatus('offline', 'Modo Local (Configurar Nube)');
+                return;
+            }
+
+            setCloudStatus('syncing', 'Guardando cambios en la nube...');
+            clearTimeout(cloudSaveTimer);
+            cloudSaveTimer = setTimeout(() => {
+                pushToCloud(false);
+            }, 750);
+        }
+
+        async function pushToCloud(manual) {
+            const url = getCloudUrl();
+            if (!url) {
+                if (manual) openCloudModal();
+                return;
+            }
+            if (lastUpdatedAt === 0) lastUpdatedAt = Date.now();
+            setCloudStatus('syncing', 'Subiendo a la nube...');
+
+            try {
+                const payload = {
+                    action: 'save_state',
+                    state: buildFullStateObject()
+                };
+                await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(payload)
+                });
+                const nowStr = new Date().toLocaleTimeString();
+                setCloudStatus('online', 'Nube Sincronizada (' + nowStr + ')');
+                if (manual) showToast('☁️ Datos subidos a la nube correctamente');
+            } catch (err) {
+                setCloudStatus('offline', 'Error al guardar en nube');
+                if (manual) alert('No se pudo conectar con la URL de Google Apps Script: ' + err.message);
+            }
+        }
+
+        async function pullFromCloud(manual) {
+            const url = getCloudUrl();
+            if (!url) {
+                setCloudStatus('offline', 'Modo Local (Configurar Nube)');
+                if (manual) openCloudModal();
+                return;
+            }
+
+            if (manual) setCloudStatus('syncing', 'Consultando nube...');
+            try {
+                const res = await fetch(url + '?t=' + Date.now(), {
+                    method: 'GET',
+                    redirect: 'follow'
+                });
+                const cloudState = await res.json();
+
+                if (cloudState && cloudState.updatedAt) {
+                    if (manual || cloudState.updatedAt > lastUpdatedAt) {
+                        applyFullStateObject(cloudState);
+                        if (manual) showToast('🔄 Datos actualizados desde la nube');
+                    }
+                    const nowStr = new Date().toLocaleTimeString();
+                    setCloudStatus('online', 'Nube Sincronizada (' + nowStr + ')');
+                } else {
+                    // La nube está vacía por primera vez: subimos lo que tenemos localmente
+                    await pushToCloud(false);
+                }
+            } catch (err) {
+                setCloudStatus('offline', 'Sin conexión a nube');
+                if (manual) showToast('⚠️ No se pudo leer la nube. Revisa la URL en Configurar Nube.');
+            }
+        }
+
+        // =========================================================================
+        // SINCRONIZACIÓN DE ENCABEZADO Y ASUNTO
+        // =========================================================================
+        function syncSubjectDate() {
+            const d = document.getElementById('inpDate').value.trim();
+            document.getElementById('inpSubject').value = 'Entrega de turno oficina ' + d;
+            onEnvelopeChange();
+        }
+
+        function syncEnvelopeUI() {
+            document.getElementById('envFrom').textContent = document.getElementById('inpFrom').value;
+            document.getElementById('envTo').textContent = document.getElementById('inpTo').value;
+            const ccVal = document.getElementById('inpCc').value.trim();
+            const ccRow = document.getElementById('envCcRow');
+            if (ccVal) {
+                ccRow.style.display = 'flex';
+                document.getElementById('envCc').textContent = ccVal;
+            } else {
+                ccRow.style.display = 'none';
+            }
+            document.getElementById('envSubject').textContent = document.getElementById('inpSubject').value;
+        }
+
+        function onEnvelopeChange() {
+            syncEnvelopeUI();
+            renderEmailPreview();
+            scheduleCloudSave();
+        }
+
+        // =========================================================================
+        // CAMBIO DE PESTAÑA / SECCIÓN EN EL FORMULARIO IZQUIERDO
+        // =========================================================================
+        function switchSection(secKey) {
+            activeSection = secKey;
+            const order = ['flota', 'preventivos', 'cctv', 'intervenciones', 'pendientes_its', 'tics', 'pendientes_tics'];
+            const buttons = document.querySelectorAll('#secNav .sec-btn');
+            buttons.forEach((btn, i) => {
+                btn.classList.toggle('active', order[i] === secKey);
+            });
+            renderSectionForm();
+            renderSectionRowsList();
+        }
+
+        function updateBadges() {
+            Object.keys(tableData).forEach(k => {
+                const el = document.getElementById('bdg-' + k);
+                if (el && Array.isArray(tableData[k])) {
+                    el.textContent = tableData[k].length;
+                }
+            });
+        }
+
+        function renderSectionForm() {
+            const box = document.getElementById('sectionFormInputs');
+            let html = '';
+
+            if (activeSection === 'flota') {
+                html = `
+                    <div class="field-group">
+                        <label>Móvil(es) <span style="font-weight:normal;color:#2e7d32;">(puedes poner varios separados por coma)</span></label>
+                        <input type="text" id="f_movil" placeholder="Ej: 7040, 7071 o Z66-7040">
+                    </div>
+                    <div class="field-group">
+                        <label>Tipo</label>
+                        <input type="text" id="f_tipo" list="list_flota_tipo" value="Inspeccion cctv" oninput="suggestFlotaObs()">
+                        <datalist id="list_flota_tipo">
+                            <option value="Inspeccion cctv">
+                            <option value="Video ftp">
+                        </datalist>
+                    </div>
+                    <div class="field-group">
+                        <label>Observacion</label>
+                        <input type="text" id="f_obs" value="Se realiza inspeccion cctv,sin novedad">
+                    </div>
+                    <button class="btn btn-add" onclick="addRowFlota()">+ Agregar a INSPECCIÓN FLOTA</button>
+                `;
+            } else if (activeSection === 'preventivos') {
+                html = `
+                    <div class="field-row-2">
+                        <div class="field-group">
+                            <label>Móvil</label>
+                            <input type="text" id="f_movil" placeholder="Ej: 7039 o Z66-7039">
+                        </div>
+                        <div class="field-group">
+                            <label>Tipo</label>
+                            <input type="text" id="f_tipo" value="Mantenimiento its">
+                        </div>
+                    </div>
+                    <div class="field-group">
+                        <label>Observacion</label>
+                        <input type="text" id="f_obs" value="Se realiza mantenimiento its,sin novedad">
+                    </div>
+                    <div class="field-row-2">
+                        <div class="field-group">
+                            <label>OT</label>
+                            <input type="text" id="f_ot" placeholder="Ej: P142193">
+                        </div>
+                        <div class="field-group">
+                            <label>TICKET MESA</label>
+                            <input type="text" id="f_ticket" placeholder="Ej: 8705">
+                        </div>
+                    </div>
+                    <button class="btn btn-add" onclick="addRowPreventivos()">+ Agregar a MANTENIMIENTOS PREVENTIVOS</button>
+                `;
+            } else if (activeSection === 'cctv') {
+                html = `
+                    <div class="field-row-3">
+                        <div class="field-group">
+                            <label>Móvil(es)</label>
+                            <input type="text" id="f_movil" placeholder="Ej: 7122">
+                        </div>
+                        <div class="field-group">
+                            <label>Tipo</label>
+                            <input type="text" id="f_tipo" list="list_cctv_tipo" value="Acompañamiento" oninput="suggestCctvObs()">
+                            <datalist id="list_cctv_tipo">
+                                <option value="Comportamiento">
+                                <option value="Acompañamiento">
+                                <option value="Entrega de video">
+                            </datalist>
+                        </div>
+                        <div class="field-group">
+                            <label>Ticket</label>
+                            <input type="text" id="f_ticket" value="N/A">
+                        </div>
+                    </div>
+                    <div class="field-group">
+                        <label>Observacion</label>
+                        <input type="text" id="f_obs" value="Se realiza inspección por comportamiento - ">
+                    </div>
+                    <button class="btn btn-add" onclick="addRowCctv()">+ Agregar a CCTV</button>
+                `;
+            } else if (activeSection === 'intervenciones' || activeSection === 'pendientes_its') {
+                const titleBtn = activeSection === 'intervenciones' ? 'INTERVENCIONES / GARANTIAS' : 'PENDIENTES (ITS)';
+                html = `
+                    <div class="field-row-3">
+                        <div class="field-group">
+                            <label>Móvil(es)</label>
+                            <input type="text" id="f_movil" placeholder="Ej: 7036">
+                        </div>
+                        <div class="field-group">
+                            <label>Tipo</label>
+                            <input type="text" id="f_tipo" placeholder="Ej: Variacion km">
+                        </div>
+                        <div class="field-group">
+                            <label>Estado</label>
+                            <select id="f_estado">
+                                <option value="Ejecutado">Ejecutado</option>
+                                <option value="Pendiente">Pendiente</option>
+                                <option value="En proceso">En proceso</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="field-group">
+                        <label>Observacion</label>
+                        <input type="text" id="f_obs" placeholder="Ej: Se realiza seguimiento del vehiculo...">
+                    </div>
+                    <div class="field-row-3">
+                        <div class="field-group">
+                            <label>RT</label>
+                            <input type="text" id="f_rt" value="N/A">
+                        </div>
+                        <div class="field-group">
+                            <label>OT</label>
+                            <input type="text" id="f_ot" value="N/A">
+                        </div>
+                        <div class="field-group">
+                            <label>TICKET MESA</label>
+                            <input type="text" id="f_ticket" value="N/A">
+                        </div>
+                    </div>
+                    <button class="btn btn-add" onclick="addRowIntervenciones('${activeSection}')">+ Agregar a ${titleBtn}</button>
+                `;
+            } else if (activeSection === 'tics') {
+                html = `
+                    <div style="margin-bottom:8px;display:flex;gap:6px;">
+                        <button class="btn btn-outline-light" style="background:#e8f5e9;color:#1b5e20;border:1px solid #2e7d32;width:100%;justify-content:center;font-size:0.76rem;" onclick="addQuickTicsPreset()">
+                            ⚡ Agregar bloque habitual TI (Data, Peso, Impresoras)
+                        </button>
+                    </div>
+                    <div class="field-row-2">
+                        <div class="field-group">
+                            <label>Usuario</label>
+                            <input type="text" id="f_usuario" value="TI">
+                        </div>
+                        <div class="field-group">
+                            <label>Novedad</label>
+                            <input type="text" id="f_novedad" placeholder="Ej: Data, Peso, Impresoras">
+                        </div>
+                    </div>
+                    <div class="field-row-2">
+                        <div class="field-group">
+                            <label>Ticket de mesa</label>
+                            <input type="text" id="f_ticket" value="N/A">
+                        </div>
+                        <div class="field-group">
+                            <label>Estado</label>
+                            <select id="f_estado">
+                                <option value="Ejecutado">Ejecutado</option>
+                                <option value="Pendiente">Pendiente</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="field-group">
+                        <label>Observación</label>
+                        <input type="text" id="f_obs" placeholder="Ej: Se descarga data de tableros">
+                    </div>
+                    <button class="btn btn-add" onclick="addRowTics()">+ Agregar a TICS</button>
+                `;
+            } else if (activeSection === 'pendientes_tics') {
+                html = `
+                    <div class="field-row-3">
+                        <div class="field-group">
+                            <label>Móvil</label>
+                            <input type="text" id="f_movil" placeholder="Ej: Z66-7010">
+                        </div>
+                        <div class="field-group">
+                            <label>Tipo</label>
+                            <input type="text" id="f_tipo" placeholder="Tipo">
+                        </div>
+                        <div class="field-group">
+                            <label>Estado</label>
+                            <input type="text" id="f_estado" value="Pendiente">
+                        </div>
+                    </div>
+                    <div class="field-group">
+                        <label>Observacion</label>
+                        <input type="text" id="f_obs" placeholder="Observación del pendiente">
+                    </div>
+                    <button class="btn btn-add" onclick="addRowPendientesTics()">+ Agregar a PENDIENTES</button>
+                `;
+            }
+
+            box.innerHTML = html;
+        }
+
+        function suggestFlotaObs() {
+            const t = document.getElementById('f_tipo').value.toLowerCase();
+            const obs = document.getElementById('f_obs');
+            if (t.includes('cctv')) obs.value = 'Se realiza inspeccion cctv,sin novedad';
+            else if (t.includes('ftp')) obs.value = 'Se carga video ftp tansMiPet';
+        }
+
+        function suggestCctvObs() {
+            const t = document.getElementById('f_tipo').value.toLowerCase();
+            const obs = document.getElementById('f_obs');
+            if (t.includes('entrega')) obs.value = 'Se realiza entrega de video solicitado por ';
+            else if (t.includes('comportamiento') || t.includes('acompañamiento')) obs.value = 'Se realiza inspección por comportamiento - ';
+        }
+
+        // =========================================================================
+        // AGREGAR, EDITAR Y ELIMINAR FILAS
+        // =========================================================================
+        function addRowFlota() {
+            const moviles = splitMoviles(document.getElementById('f_movil').value);
+            const tipo = document.getElementById('f_tipo').value.trim();
+            const obs = document.getElementById('f_obs').value.trim();
+            moviles.forEach(m => {
+                tableData.flota.push({ movil: m, tipo, obs });
+            });
+            document.getElementById('f_movil').value = '';
+            onTableDataChanged();
+        }
+
+        function addRowPreventivos() {
+            const moviles = splitMoviles(document.getElementById('f_movil').value);
+            const tipo = document.getElementById('f_tipo').value.trim();
+            const obs = document.getElementById('f_obs').value.trim();
+            const ot = document.getElementById('f_ot').value.trim();
+            const ticket = document.getElementById('f_ticket').value.trim();
+            moviles.forEach(m => {
+                tableData.preventivos.push({ movil: m, tipo, obs, ot, ticket });
+            });
+            document.getElementById('f_movil').value = '';
+            document.getElementById('f_ot').value = '';
+            document.getElementById('f_ticket').value = '';
+            onTableDataChanged();
+        }
+
+        function addRowCctv() {
+            const moviles = splitMoviles(document.getElementById('f_movil').value);
+            const tipo = document.getElementById('f_tipo').value.trim();
+            const ticket = document.getElementById('f_ticket').value.trim() || 'N/A';
+            const obs = document.getElementById('f_obs').value.trim();
+            moviles.forEach(m => {
+                tableData.cctv.push({ movil: m, tipo, ticket, obs });
+            });
+            document.getElementById('f_movil').value = '';
+            onTableDataChanged();
+        }
+
+        function addRowIntervenciones(secKey) {
+            const moviles = splitMoviles(document.getElementById('f_movil').value);
+            const tipo = document.getElementById('f_tipo').value.trim();
+            const estado = document.getElementById('f_estado').value.trim();
+            const obs = document.getElementById('f_obs').value.trim();
+            const rt = document.getElementById('f_rt').value.trim();
+            const ot = document.getElementById('f_ot').value.trim();
+            const ticket = document.getElementById('f_ticket').value.trim();
+            moviles.forEach(m => {
+                tableData[secKey].push({ movil: m, tipo, estado, obs, rt, ot, ticket });
+            });
+            document.getElementById('f_movil').value = '';
+            onTableDataChanged();
+        }
+
+        function addRowTics() {
+            const usuario = document.getElementById('f_usuario').value.trim() || 'TI';
+            const novedad = document.getElementById('f_novedad').value.trim();
+            const ticket = document.getElementById('f_ticket').value.trim() || 'N/A';
+            const estado = document.getElementById('f_estado').value.trim() || 'Ejecutado';
+            const obs = document.getElementById('f_obs').value.trim();
+            tableData.tics.push({ usuario, novedad, ticket, estado, obs });
+            document.getElementById('f_novedad').value = '';
+            document.getElementById('f_obs').value = '';
+            onTableDataChanged();
+        }
+
+        function addQuickTicsPreset() {
+            tableData.tics.push(
+                { usuario: 'TI', novedad: 'Data', ticket: 'N/A', estado: 'Ejecutado', obs: 'Se descarga data de tableros' },
+                { usuario: 'TI', novedad: 'Peso', ticket: 'N/A', estado: 'Ejecutado', obs: 'Se envia correo de peso' },
+                { usuario: 'TI', novedad: 'Impresoras', ticket: 'N/A', estado: 'Ejecutado', obs: 'Se realiza consolidado de impresoras' }
+            );
+            onTableDataChanged();
+            showToast('Tareas de TICS agregadas');
+        }
+
+        function addRowPendientesTics() {
+            const moviles = splitMoviles(document.getElementById('f_movil').value);
+            const tipo = document.getElementById('f_tipo').value.trim();
+            const estado = document.getElementById('f_estado').value.trim();
+            const obs = document.getElementById('f_obs').value.trim();
+            moviles.forEach(m => {
+                tableData.pendientes_tics.push({ movil: m, tipo, estado, obs });
+            });
+            document.getElementById('f_movil').value = '';
+            onTableDataChanged();
+        }
+
+        // Permite cargar una fila existente de vuelta al formulario para corregirla rápido
+        function editRow(secKey, index) {
+            const row = tableData[secKey][index];
+            if (!row) return;
+            tableData[secKey].splice(index, 1);
+
+            if (document.getElementById('f_movil') && row.movil !== undefined) document.getElementById('f_movil').value = row.movil;
+            if (document.getElementById('f_usuario') && row.usuario !== undefined) document.getElementById('f_usuario').value = row.usuario;
+            if (document.getElementById('f_novedad') && row.novedad !== undefined) document.getElementById('f_novedad').value = row.novedad;
+            if (document.getElementById('f_tipo') && row.tipo !== undefined) document.getElementById('f_tipo').value = row.tipo;
+            if (document.getElementById('f_estado') && row.estado !== undefined) document.getElementById('f_estado').value = row.estado;
+            if (document.getElementById('f_obs') && row.obs !== undefined) document.getElementById('f_obs').value = row.obs;
+            if (document.getElementById('f_rt') && row.rt !== undefined) document.getElementById('f_rt').value = row.rt;
+            if (document.getElementById('f_ot') && row.ot !== undefined) document.getElementById('f_ot').value = row.ot;
+            if (document.getElementById('f_ticket') && row.ticket !== undefined) document.getElementById('f_ticket').value = row.ticket;
+
+            onTableDataChanged();
+            showToast('Fila cargada arriba para editar. Corrige y presiona + Agregar');
+        }
+
+        function deleteRow(secKey, index) {
+            tableData[secKey].splice(index, 1);
+            onTableDataChanged();
+        }
+
+        function onTableDataChanged() {
+            updateBadges();
+            renderSectionRowsList();
+            renderEmailPreview();
+            scheduleCloudSave();
+        }
+
+        function renderSectionRowsList() {
+            const container = document.getElementById('sectionRowsList');
+            const rows = tableData[activeSection] || [];
+            if (rows.length === 0) {
+                container.innerHTML = `<div style="font-size:0.75rem;color:#777;text-align:center;padding:6px;">Sección sin registros (se muestra fila en blanco como en el Excel).</div>`;
+                return;
+            }
+            container.innerHTML = rows.map((r, i) => {
+                const col1 = r.movil !== undefined ? (r.movil || '(Vacío)') : r.usuario;
+                const col2 = r.tipo !== undefined ? r.tipo : r.novedad;
+                return `
+                    <div class="row-item">
+                        <span class="row-item-text"><strong>${col1}</strong> | ${col2} | ${r.obs || ''}</span>
+                        <div class="row-item-actions">
+                            <button class="row-btn-edit" onclick="editRow('${activeSection}', ${i})" title="Editar esta fila">✏️</button>
+                            <button class="row-item-del" onclick="deleteRow('${activeSection}', ${i})" title="Quitar fila">✕</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // =========================================================================
+        // GESTIÓN DE IMÁGENES PNG DE FIRMAS
+        // =========================================================================
+        function handleSignatureUpload(event) {
+            const files = Array.from(event.target.files || []);
+            if (!files.length) return;
+
+            files.forEach(file => {
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    savedSignatures.push({
+                        id: 'sig_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+                        name: file.name,
+                        dataUrl: ev.target.result,
+                        active: true
+                    });
+                    renderSavedSignaturesList();
+                    renderEmailPreview();
+                    scheduleCloudSave();
+                    showToast('Firma PNG cargada y sincronizada: ' + file.name);
+                };
+                reader.readAsDataURL(file);
+            });
+            event.target.value = '';
+        }
+
+        function toggleSignatureActive(idx) {
+            savedSignatures[idx].active = !savedSignatures[idx].active;
+            renderSavedSignaturesList();
+            renderEmailPreview();
+            scheduleCloudSave();
+        }
+
+        function removeSignature(idx) {
+            savedSignatures.splice(idx, 1);
+            renderSavedSignaturesList();
+            renderEmailPreview();
+            scheduleCloudSave();
+        }
+
+        function updateSigSize(val) {
+            sigWidthPx = parseInt(val, 10) || 280;
+            document.getElementById('sigSizeLabel').textContent = sigWidthPx + 'px';
+            renderEmailPreview();
+            scheduleCloudSave();
+        }
+
+        function renderSavedSignaturesList() {
+            const listEl = document.getElementById('savedSignaturesList');
+            if (savedSignatures.length === 0) {
+                listEl.innerHTML = `<div style="font-size:0.76rem;color:#666;text-align:center;">No has subido imágenes PNG de firma todavía.</div>`;
+                return;
+            }
+            listEl.innerHTML = savedSignatures.map((sig, idx) => `
+                <div class="sig-saved-item">
+                    <label style="display:flex;align-items:center;gap:6px;margin:0;cursor:pointer;flex:1;overflow:hidden;">
+                        <input type="checkbox" ${sig.active ? 'checked' : ''} onchange="toggleSignatureActive(${idx})">
+                        <img src="${sig.dataUrl}" alt="${sig.name}">
+                        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${sig.name}</span>
+                    </label>
+                    <button class="row-item-del" onclick="removeSignature(${idx})" title="Borrar firma">🗑️</button>
+                </div>
+            `).join('');
+        }
+
+        // =========================================================================
+        // RENDERIZADO DE LA TABLA VERTICAL EXACTA AL EXCEL (INLINE CSS PARA GMAIL)
+        // =========================================================================
+        function buildEmailHtml(useCidForImages) {
+            const greeting = (document.getElementById('inpGreeting').value || '').replace(/\n/g, '<br>');
+            const closing = (document.getElementById('inpClosing').value || '').replace(/\n/g, '<br>');
+            const useNeon = document.getElementById('chkNeonCctv').checked;
+
+            const greenBarBg = '#8ed973';
+            const cctvBarBg = useNeon ? '#00ff00' : '#8ed973';
+            const grayBg = '#d9d9d9';
+
+            const cellBase = 'border:1px solid #000000;padding:3px 6px;text-align:center;font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#000000;';
+            const hdrGray = cellBase + 'background-color:' + grayBg + ';font-weight:bold;';
+            const hdrGreenBar = cellBase + 'background-color:' + greenBarBg + ';font-weight:bold;';
+            const hdrCctvBar = cellBase + 'background-color:' + cctvBarBg + ';font-weight:bold;';
+            const leftLabelStyle = cellBase + 'background-color:' + grayBg + ';font-weight:bold;vertical-align:middle;width:92px;';
+
+            const flotaRows = tableData.flota.length > 0 ? tableData.flota : [
+                { movil: '', tipo: '', obs: '' },
+                { movil: '', tipo: '', obs: '' }
+            ];
+            const prevRows = tableData.preventivos.length > 0 ? tableData.preventivos : [
+                { movil: '', tipo: '', obs: '', ot: '', ticket: '' }
+            ];
+            const cctvRows = tableData.cctv.length > 0 ? tableData.cctv : [
+                { movil: '', tipo: '', ticket: '', obs: '' }
+            ];
+            const intRows = tableData.intervenciones.length > 0 ? tableData.intervenciones : [
+                { movil: '', tipo: '', estado: '', obs: '', rt: '', ot: '', ticket: '' }
+            ];
+            const pendItsRows = tableData.pendientes_its.length > 0 ? tableData.pendientes_its : [
+                { movil: '', tipo: '', estado: '', obs: '', rt: '', ot: '', ticket: '' }
+            ];
+            const ticsRows = tableData.tics.length > 0 ? tableData.tics : [
+                { usuario: '', novedad: '', ticket: '', estado: '', obs: '' }
+            ];
+            const pendTicsRows = tableData.pendientes_tics.length > 0 ? tableData.pendientes_tics : [
+                { movil: '', tipo: '', estado: '', obs: '' }
+            ];
+
+            const itsRowSpan = 8 + flotaRows.length + prevRows.length + cctvRows.length + intRows.length;
+            const pendItsRowSpan = 1 + pendItsRows.length;
+            const ticsRowSpan = 1 + ticsRows.length;
+            const pendTicsRowSpan = 1 + pendTicsRows.length;
+
+            let trs = '';
+
+            // --- 1. INSPECCIÓN FLOTA ---
+            trs += `<tr>
+                <td rowspan="${itsRowSpan}" style="${leftLabelStyle}">ITS</td>
+                <td colspan="7" style="${hdrGreenBar}">INSPECCIÓN FLOTA</td>
+            </tr>`;
+            trs += `<tr>
+                <td style="${hdrGray}width:95px;">Movil</td>
+                <td style="${hdrGray}width:130px;">Tipo</td>
+                <td colspan="5" style="${hdrGray}">Observacion</td>
+            </tr>`;
+            flotaRows.forEach(r => {
+                trs += `<tr>
+                    <td style="${cellBase}height:21px;">${r.movil || '&nbsp;'}</td>
+                    <td style="${cellBase}">${r.tipo || '&nbsp;'}</td>
+                    <td colspan="5" style="${cellBase}">${r.obs || '&nbsp;'}</td>
+                </tr>`;
+            });
+
+            // --- 2. MANTENIMIENTOS PREVENTIVOS ---
+            trs += `<tr>
+                <td colspan="7" style="${hdrGreenBar}">MANTENIMIENTOS PREVENTIVOS</td>
+            </tr>`;
+            trs += `<tr>
+                <td style="${hdrGray}">Movil</td>
+                <td style="${hdrGray}">Tipo</td>
+                <td colspan="2" style="${hdrGray}">Observacion</td>
+                <td colspan="2" style="${hdrGray}">OT</td>
+                <td style="${hdrGray}width:70px;">TICKET<br>MESA</td>
+            </tr>`;
+            prevRows.forEach(r => {
+                trs += `<tr>
+                    <td style="${cellBase}height:21px;">${r.movil || '&nbsp;'}</td>
+                    <td style="${cellBase}">${r.tipo || '&nbsp;'}</td>
+                    <td colspan="2" style="${cellBase}">${r.obs || '&nbsp;'}</td>
+                    <td colspan="2" style="${cellBase}font-weight:bold;">${r.ot || '&nbsp;'}</td>
+                    <td style="${cellBase}">${r.ticket || '&nbsp;'}</td>
+                </tr>`;
+            });
+
+            // --- 3. CCTV ---
+            trs += `<tr>
+                <td colspan="7" style="${hdrCctvBar}">CCTV</td>
+            </tr>`;
+            trs += `<tr>
+                <td style="${hdrGray}">Movil</td>
+                <td style="${hdrGray}">Tipo</td>
+                <td style="${hdrGray}width:85px;">Ticket</td>
+                <td colspan="4" style="${hdrGray}">Observacion</td>
+            </tr>`;
+            cctvRows.forEach(r => {
+                trs += `<tr>
+                    <td style="${cellBase}height:21px;">${r.movil || '&nbsp;'}</td>
+                    <td style="${cellBase}">${r.tipo || '&nbsp;'}</td>
+                    <td style="${cellBase}">${r.ticket || '&nbsp;'}</td>
+                    <td colspan="4" style="${cellBase}">${r.obs || '&nbsp;'}</td>
+                </tr>`;
+            });
+
+            // --- 4. INTERVENCIONES / GARANTIAS ---
+            trs += `<tr>
+                <td colspan="7" style="${hdrGreenBar}">INTERVENCIONES / GARANTIAS</td>
+            </tr>`;
+            trs += `<tr>
+                <td style="${hdrGray}">Movil</td>
+                <td style="${hdrGray}">Tipo</td>
+                <td style="${hdrGray}">Estado</td>
+                <td style="${hdrGray}width:340px;">Observacion</td>
+                <td style="${hdrGray}width:65px;">RT</td>
+                <td style="${hdrGray}width:75px;">OT</td>
+                <td style="${hdrGray}width:70px;">TICKET<br>MESA</td>
+            </tr>`;
+            intRows.forEach(r => {
+                trs += `<tr>
+                    <td style="${cellBase}height:21px;">${r.movil || '&nbsp;'}</td>
+                    <td style="${cellBase}">${r.tipo || '&nbsp;'}</td>
+                    <td style="${cellBase}">${r.estado || '&nbsp;'}</td>
+                    <td style="${cellBase}">${r.obs || '&nbsp;'}</td>
+                    <td style="${cellBase}">${r.rt || '&nbsp;'}</td>
+                    <td style="${cellBase}">${r.ot || '&nbsp;'}</td>
+                    <td style="${cellBase}">${r.ticket || '&nbsp;'}</td>
+                </tr>`;
+            });
+
+            // --- 5. PENDIENTES (ITS) ---
+            trs += `<tr>
+                <td rowspan="${pendItsRowSpan}" style="${leftLabelStyle}">PENDIENTES</td>
+                <td style="${hdrGray}">Movil</td>
+                <td style="${hdrGray}">Tipo</td>
+                <td style="${hdrGray}">Estado</td>
+                <td style="${hdrGray}">Observacion</td>
+                <td style="${hdrGray}">Rt</td>
+                <td style="${hdrGray}">OT</td>
+                <td style="${hdrGray}">TICKET<br>MESA</td>
+            </tr>`;
+            pendItsRows.forEach(r => {
+                trs += `<tr>
+                    <td style="${cellBase}height:21px;">${r.movil || '&nbsp;'}</td>
+                    <td style="${cellBase}">${r.tipo || '&nbsp;'}</td>
+                    <td style="${cellBase}">${r.estado || '&nbsp;'}</td>
+                    <td style="${cellBase}">${r.obs || '&nbsp;'}</td>
+                    <td style="${cellBase}">${r.rt || '&nbsp;'}</td>
+                    <td style="${cellBase}">${r.ot || '&nbsp;'}</td>
+                    <td style="${cellBase}">${r.ticket || '&nbsp;'}</td>
+                </tr>`;
+            });
+
+            // --- 6. TICS ---
+            trs += `<tr>
+                <td rowspan="${ticsRowSpan}" style="${leftLabelStyle}">TICS</td>
+                <td style="${hdrGreenBar}">Usuario</td>
+                <td style="${hdrGreenBar}">Novedad</td>
+                <td style="${hdrGreenBar}">Ticket de mesa</td>
+                <td style="${hdrGreenBar}">Estado</td>
+                <td colspan="3" style="${hdrGreenBar}">Observación</td>
+            </tr>`;
+            ticsRows.forEach(r => {
+                trs += `<tr>
+                    <td style="${cellBase}height:21px;">${r.usuario || '&nbsp;'}</td>
+                    <td style="${cellBase}">${r.novedad || '&nbsp;'}</td>
+                    <td style="${cellBase}">${r.ticket || '&nbsp;'}</td>
+                    <td style="${cellBase}">${r.estado || '&nbsp;'}</td>
+                    <td colspan="3" style="${cellBase}">${r.obs || '&nbsp;'}</td>
+                </tr>`;
+            });
+
+            // --- 7. PENDIENTES (FINAL) ---
+            trs += `<tr>
+                <td rowspan="${pendTicsRowSpan}" style="${leftLabelStyle}">PENDIENTES</td>
+                <td style="${hdrGray}">Movil</td>
+                <td style="${hdrGray}">Tipo</td>
+                <td style="${hdrGray}">Estado</td>
+                <td colspan="4" style="${hdrGray}">Observacion</td>
+            </tr>`;
+            pendTicsRows.forEach(r => {
+                trs += `<tr>
+                    <td style="${cellBase}height:21px;">${r.movil || '&nbsp;'}</td>
+                    <td style="${cellBase}">${r.tipo || '&nbsp;'}</td>
+                    <td style="${cellBase}">${r.estado || '&nbsp;'}</td>
+                    <td colspan="4" style="${cellBase}">${r.obs || '&nbsp;'}</td>
+                </tr>`;
+            });
+
+            const activeSigs = savedSignatures.filter(s => s.active);
+            const sigLayout = document.getElementById('sigLayoutSelect').value;
+            let sigsHtml = '';
+
+            if (activeSigs.length > 0) {
+                if (sigLayout === 'horizontal') {
+                    sigsHtml = `<table style="border-collapse:collapse;border:none;margin-top:12px;"><tr>`;
+                    activeSigs.forEach((s, idx) => {
+                        const imgSrc = useCidForImages ? `cid:sig_img_${idx}` : s.dataUrl;
+                        sigsHtml += `<td style="border:none;padding-right:24px;vertical-align:top;">
+                            <img src="${imgSrc}" alt="${s.name}" width="${sigWidthPx}" style="width:${sigWidthPx}px;max-width:100%;height:auto;display:block;">
+                        </td>`;
+                    });
+                    sigsHtml += `</tr></table>`;
+                } else {
+                    sigsHtml = `<div style="margin-top:12px;">`;
+                    activeSigs.forEach((s, idx) => {
+                        const imgSrc = useCidForImages ? `cid:sig_img_${idx}` : s.dataUrl;
+                        sigsHtml += `<div style="margin-bottom:14px;">
+                            <img src="${imgSrc}" alt="${s.name}" width="${sigWidthPx}" style="width:${sigWidthPx}px;max-width:100%;height:auto;display:block;">
+                        </div>`;
+                    });
+                    sigsHtml += `</div>`;
+                }
+            }
+
+            return `
+                <div style="font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#000000;">
+                    <p style="margin:0 0 14px 0;">${greeting}</p>
+                    <table style="width:100%;max-width:980px;border-collapse:collapse;border:2px solid #000000;background-color:#ffffff;">
+                        ${trs}
+                    </table>
+                    <p style="margin:16px 0 10px 0;line-height:1.45;">${closing}</p>
+                    ${sigsHtml}
+                </div>
+            `;
+        }
+
+        function renderEmailPreview() {
+            document.getElementById('email-render-root').innerHTML = buildEmailHtml(false);
+        }
+
+        function loadTemplateExample() {
+            tableData = {
+                flota: [],
+                preventivos: [
+                    { movil: 'Z66-7039', tipo: 'Mantenimiento its', obs: 'Se realiza mantenimiento its,sin novedad', ot: 'P142193', ticket: '8705' },
+                    { movil: 'Z66-7052', tipo: 'Mantenimiento its', obs: 'Se realiza mantenimiento its,sin novedad', ot: 'P142206', ticket: '8706' },
+                    { movil: 'Z66-7070', tipo: 'Mantenimiento its', obs: 'Se realiza mantenimiento its,sin novedad', ot: 'P142224', ticket: '8707' },
+                    { movil: 'Z66-7082', tipo: 'Mantenimiento its', obs: 'Se realiza mantenimiento its,sin novedad', ot: 'P142236', ticket: '8708' }
+                ],
+                cctv: [
+                    { movil: 'Z66-7122', tipo: 'Comportamiento', ticket: 'N/A', obs: 'Se realiza inspección por comportamiento - Gisela Vargas' },
+                    { movil: 'Z66-7085', tipo: 'Acompañamiento', ticket: 'N/A', obs: 'Se realiza inspección por comportamiento - Javier Guzman' },
+                    { movil: 'Z66-7034', tipo: 'Acompañamiento', ticket: 'N/A', obs: 'Se realiza inspección por comportamiento - Javier Guzman' },
+                    { movil: 'Z66-7091', tipo: 'Acompañamiento', ticket: 'N/A', obs: 'Se realiza inspección por comportamiento - Javier Guzman' },
+                    { movil: 'Z66-7093', tipo: 'Entrega de video', ticket: '10565', obs: 'Se realiza entrega de video solicitado por Jose Gomez' },
+                    { movil: 'Z66-7093', tipo: 'Entrega de video', ticket: '10566', obs: 'Se realiza entrega de video solicitado por Marcela Avila' },
+                    { movil: 'Z66-7085', tipo: 'Entrega de video', ticket: '10567', obs: 'Se realiza entrega de video solicitado por Jonathan Quintero' }
+                ],
+                intervenciones: [
+                    { movil: 'Z66-7036', tipo: 'Variacion km', estado: 'Ejecutado', obs: 'Se realiza seguimiento del vehiculo la cual se evidencia la si variacion del km', rt: '46359', ot: 'C143814', ticket: '10568' }
+                ],
+                pendientes_its: [],
+                tics: [
+                    { usuario: 'TI', novedad: 'Data', ticket: 'N/A', estado: 'Ejecutado', obs: 'Se descarga data de tableros' },
+                    { usuario: 'TI', novedad: 'Peso', ticket: 'N/A', estado: 'Ejecutado', obs: 'Se envia correo de peso' },
+                    { usuario: 'TI', novedad: 'Impresoras', ticket: 'N/A', estado: 'Ejecutado', obs: 'Se realiza consolidado de impresoras' }
+                ],
+                pendientes_tics: []
+            };
+            onTableDataChanged();
+            showToast('Ejemplo cargado y sincronizado');
+        }
+
+        function clearAllTables() {
+            if (!confirm('¿Deseas vaciar todos los registros de la tabla para iniciar un turno limpio? (Tus firmas PNG no se borrarán)')) return;
+            tableData = {
+                flota: [],
+                preventivos: [],
+                cctv: [],
+                intervenciones: [],
+                pendientes_its: [],
+                tics: [],
+                pendientes_tics: []
+            };
+            onTableDataChanged();
+            showToast('Tabla reiniciada en blanco');
+        }
+
+        // =========================================================================
+        // OPCIÓN 1: COPIAR FORMATO RICO Y ABRIR GMAIL
+        // =========================================================================
+        function copyAndOpenGmail() {
+            const rootEl = document.getElementById('email-render-root');
+            const range = document.createRange();
+            range.selectNodeContents(rootEl);
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+
+            try {
+                document.execCommand('copy');
+            } catch (e) {}
+            sel.removeAllRanges();
+
+            const to = encodeURIComponent(document.getElementById('inpTo').value.trim());
+            const cc = encodeURIComponent(document.getElementById('inpCc').value.trim());
+            const su = encodeURIComponent(document.getElementById('inpSubject').value.trim());
+
+            let gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${to}&su=${su}`;
+            if (cc) gmailUrl += `&cc=${cc}`;
+
+            showToast('¡Copiado! En la pestaña de Gmail solo presiona Ctrl + V');
+            setTimeout(() => {
+                window.open(gmailUrl, '_blank');
+            }, 450);
+        }
+
+        // =========================================================================
+        // MODAL Y ENVÍO AUTOMÁTICO DIRECTO VÍA GOOGLE APPS SCRIPT
+        // =========================================================================
+        function openCloudModal() {
+            document.getElementById('inpWebhookUrl').value = getCloudUrl();
+            document.getElementById('cloudModal').style.display = 'flex';
+        }
+
+        function closeCloudModal() {
+            document.getElementById('cloudModal').style.display = 'none';
+        }
+
+        function saveWebhookUrl() {
+            const url = document.getElementById('inpWebhookUrl').value.trim();
+            localStorage.setItem('esomos_gas_webhook_url', url);
+            closeCloudModal();
+            showToast('URL de nube guardada. Sincronizando...');
+            pullFromCloud(true);
+        }
+
+        async function sendEmailAutomatically() {
+            const webhookUrl = getCloudUrl();
+            if (!webhookUrl) {
+                openCloudModal();
+                showToast('Configura primero la URL de Google Apps Script');
+                return;
+            }
+
+            const to = document.getElementById('inpTo').value.trim();
+            const cc = document.getElementById('inpCc').value.trim();
+            const subject = document.getElementById('inpSubject').value.trim();
+
+            if (!confirm(`¿Enviar ahora mismo el correo "${subject}" a ${to}?`)) return;
+
+            const activeSigs = savedSignatures.filter(s => s.active);
+            const imagesMap = {};
+            activeSigs.forEach((sig, idx) => {
+                const parts = sig.dataUrl.split(',');
+                const mimeMatch = parts[0].match(/:(.*?);/);
+                const mimeType = mimeMatch ? mimeMatch[1] : 'image/png';
+                imagesMap[`sig_img_${idx}`] = {
+                    mimeType: mimeType,
+                    base64: parts[1]
+                };
+            });
+
+            const payload = {
+                action: 'send_email',
+                to: to,
+                cc: cc,
+                subject: subject,
+                htmlBody: buildEmailHtml(true),
+                images: imagesMap
+            };
+
+            showToast('Enviando correo automáticamente...');
+            try {
+                await fetch(webhookUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(payload)
+                });
+                showToast('✅ ¡Correo enviado exitosamente a ' + to + '!');
+            } catch (err) {
+                alert('Error al conectar con el script de envío: ' + err.message);
+            }
+        }
+
+        function downloadPDF() {
+            const element = document.getElementById('email-render-root');
+            const dateClean = document.getElementById('inpDate').value.trim().replace(/\//g, '_');
+            const opt = {
+                margin: [8, 8, 8, 8],
+                filename: `Entrega_de_turno_oficina_${dateClean}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+            showToast('Generando PDF vertical...');
+            html2pdf().set(opt).from(element).save();
+        }
+
+        function showToast(msg) {
+            const el = document.getElementById('toast-msg');
+            el.textContent = msg;
+            el.style.display = 'block';
+            clearTimeout(window._toastTimer);
+            window._toastTimer = setTimeout(() => {
+                el.style.display = 'none';
+            }, 3500);
+        }
+
+        // =========================================================================
+        // INICIALIZACIÓN Y AUTO-SINCRONIZACIÓN ENTRE EQUIPOS
+        // =========================================================================
+        window.addEventListener('DOMContentLoaded', () => {
+            const mirrorJson = localStorage.getItem('esomos_cloud_mirror_v3');
+            if (mirrorJson) {
+                try {
+                    const parsed = JSON.parse(mirrorJson);
+                    applyFullStateObject(parsed);
+                } catch (e) {}
+            } else {
+                loadTemplateExample();
+            }
+
+            switchSection('preventivos');
+            syncEnvelopeUI();
+
+            // Si ya hay URL de nube configurada, descarga de inmediato lo último editado en otro PC
+            if (getCloudUrl()) {
+                pullFromCloud(false);
+            } else {
+                setCloudStatus('offline', 'Modo Local (Configurar Nube)');
+            }
+
+            // Polling cada 15 segundos para trabajo simultáneo entre equipos
+            setInterval(() => {
+                const autoPoll = document.getElementById('chkAutoPoll').checked;
+                if (!autoPoll || document.hidden || !getCloudUrl()) return;
+                // No interrumpir si el usuario está escribiendo dentro de un campo de texto
+                const activeTag = document.activeElement ? document.activeElement.tagName : '';
+                if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') return;
+                pullFromCloud(false);
+            }, 15000);
+        });
+    </script>
+</body>
+</html>
