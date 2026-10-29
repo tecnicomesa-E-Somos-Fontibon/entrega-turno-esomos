@@ -514,7 +514,7 @@
             <!-- Estado de Nube en Tiempo Real -->
             <div class="cloud-pill" onclick="openCloudModal()" title="Haz clic para configurar o revisar la sincronización en la nube">
                 <span class="cloud-dot" id="cloudDot"></span>
-                <span id="cloudStatusText">Modo Local (Sin Nube)</span>
+                <span id="cloudStatusText">Conectando a la nube...</span>
             </div>
         </div>
 
@@ -525,7 +525,7 @@
             <button class="btn btn-outline-light" onclick="openCloudModal()">
                 ☁️ Configurar Nube / Correo
             </button>
-            <button class="btn btn-outline-light" onclick="loadTemplateExample()">
+            <button class="btn btn-outline-light" onclick="loadTemplateExample(true)" title="Cargar datos de demostración manualmente">
                 📋 Ejemplo
             </button>
             <button class="btn btn-danger" onclick="clearAllTables()">
@@ -569,11 +569,11 @@
                 <div class="field-row-2">
                     <div class="field-group">
                         <label>Fecha del Turno</label>
-                        <input type="text" id="inpDate" value="28/10/2026" oninput="syncSubjectDate()">
+                        <input type="text" id="inpDate" value="29/10/2026" oninput="syncSubjectDate()">
                     </div>
                     <div class="field-group">
                         <label>Asunto del Correo</label>
-                        <input type="text" id="inpSubject" value="Entrega de turno oficina 28/10/2026" oninput="onEnvelopeChange()">
+                        <input type="text" id="inpSubject" value="Entrega de turno oficina 29/10/2026" oninput="onEnvelopeChange()">
                     </div>
                 </div>
                 <div class="field-group">
@@ -684,11 +684,11 @@ Cordialmente,</textarea>
                     </div>
                     <div class="email-envelope-row">
                         <span class="email-envelope-label">Asunto:</span>
-                        <span id="envSubject" style="font-weight:700;">Entrega de turno oficina 28/10/2026</span>
+                        <span id="envSubject" style="font-weight:700;">Entrega de turno oficina 29/10/2026</span>
                     </div>
                 </div>
                 <div style="text-align:right;font-size:0.76rem;color:#555;">
-                    <div id="lastSyncInfo">Última edición local</div>
+                    <div id="lastSyncInfo">Sincronizando estado inicial...</div>
                     <label style="display:inline-flex;align-items:center;gap:4px;font-weight:normal;margin-top:4px;cursor:pointer;">
                         <input type="checkbox" id="chkAutoPoll" checked>
                         Auto-actualizar cada 15s entre equipos
@@ -707,13 +707,10 @@ Cordialmente,</textarea>
         <div class="modal-card">
             <h3 style="margin-top:0;color:#1b5e20;">☁️ Configurar Sincronización entre Equipos (GitHub) + Envío Gmail</h3>
             <p style="font-size:0.84rem;line-height:1.45;color:#333;">
-                Como GitHub Pages aloja páginas estáticas, este código de <strong>Google Apps Script</strong> hace dos cosas al mismo tiempo usando la cuenta de ustedes (<code>tecnicomesaits@e-somos.co</code>):
-                <br>1️⃣ <strong>Guarda en la nube de Google Drive</strong> todo lo que vayas llenando en el PC de la oficina para que al abrir el link de GitHub en tu portátil cargue exactamente igual.
-                <br>2️⃣ <strong>Envía el correo directamente</strong> a tu jefe cuando presiones el botón amarillo.
+                Este código de <strong>Google Apps Script</strong> guarda el último estado permanentemente en Google Drive y nunca lo borra al abrir la página en otro computador:
             </p>
             <ol style="font-size:0.81rem;line-height:1.48;color:#222;padding-left:20px;">
-                <li>Abre <a href="https://script.google.com" target="_blank" style="color:#1b5e20;font-weight:bold;">https://script.google.com</a> con el correo de la mesa de ayuda y crea un <strong>"Nuevo proyecto"</strong>.</li>
-                <li>Borra lo que aparezca y pega este código completo:
+                <li>Abre <a href="https://script.google.com" target="_blank" style="color:#1b5e20;font-weight:bold;">https://script.google.com</a> y asegúrate de tener este código con bloqueo anti-colisiones (<code>LockService</code>):
                     <div class="code-snippet">var FILE_NAME = "esomos_entrega_turno_cloud_state.json";
 
 function getOrCreateFile() {
@@ -730,38 +727,42 @@ function doGet(e) {
 }
 
 function doPost(e) {
-  var data = JSON.parse(e.postData.contents);
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(15000);
+    var data = JSON.parse(e.postData.contents);
 
-  // 1. Guardar estado sincronizado entre PC de oficina y portátil
-  if (data.action === "save_state") {
-    var file = getOrCreateFile();
-    file.setContent(JSON.stringify(data.state));
-    return ContentService.createTextOutput(JSON.stringify({status: "saved", updatedAt: data.state.updatedAt}))
-                         .setMimeType(ContentService.MimeType.JSON);
-  }
-
-  // 2. Enviar el correo de entrega de turno directamente al jefe
-  var inlineImages = {};
-  if (data.images) {
-    for (var key in data.images) {
-      var bytes = Utilities.base64Decode(data.images[key].base64);
-      inlineImages[key] = Utilities.newBlob(bytes, data.images[key].mimeType, key);
+    // 1. Guardar estado sincronizado entre PC de oficina y portátil
+    if (data.action === "save_state") {
+      var file = getOrCreateFile();
+      file.setContent(JSON.stringify(data.state));
+      return ContentService.createTextOutput(JSON.stringify({ok: true, status: "saved", updatedAt: data.state.updatedAt}))
+                           .setMimeType(ContentService.MimeType.JSON);
     }
+
+    // 2. Enviar el correo de entrega de turno directamente al jefe
+    var inlineImages = {};
+    if (data.images) {
+      for (var key in data.images) {
+        var bytes = Utilities.base64Decode(data.images[key].base64);
+        inlineImages[key] = Utilities.newBlob(bytes, data.images[key].mimeType, key);
+      }
+    }
+    MailApp.sendEmail({
+      to: data.to,
+      cc: data.cc || "",
+      subject: data.subject,
+      htmlBody: data.htmlBody,
+      inlineImages: inlineImages
+    });
+    return ContentService.createTextOutput(JSON.stringify({ok: true, status: "sent"}))
+                         .setMimeType(ContentService.MimeType.JSON);
+  } finally {
+    lock.releaseLock();
   }
-  MailApp.sendEmail({
-    to: data.to,
-    cc: data.cc || "",
-    subject: data.subject,
-    htmlBody: data.htmlBody,
-    inlineImages: inlineImages
-  });
-  return ContentService.createTextOutput(JSON.stringify({status: "sent"}))
-                       .setMimeType(ContentService.MimeType.JSON);
 }</div>
                 </li>
-                <li>Haz clic arriba a la derecha en <strong>Implementar &rarr; Nueva implementación</strong> (o <em>Gestionar implementaciones &rarr; Editar &rarr; Nueva versión</em> si ya tenías una).</li>
-                <li>Elige <strong>Aplicación web</strong>, en <em>"Quién tiene acceso"</em> selecciona <strong>Cualquier persona</strong> y dale a <strong>Implementar</strong>.</li>
-                <li>Pega la <strong>URL de la aplicación web</strong> aquí abajo (o directamente en la línea <code>DEFAULT_CLOUD_URL</code> del código antes de subirlo a GitHub):</li>
+                <li>Recuerda que en <strong>Implementar &rarr; Gestionar implementaciones</strong>, en <em>"Quién tiene acceso"</em> debe estar en <strong>Cualquier persona</strong> (y que la URL sea la estándar <code>https://script.google.com/macros/s/.../exec</code> sin <code>/a/macros/e-somos.co/</code>).</li>
             </ol>
             <div class="field-group">
                 <label>URL de tu Google Apps Script:</label>
@@ -773,7 +774,7 @@ function doPost(e) {
                 </button>
                 <div style="display:flex;gap:8px;">
                     <button class="btn btn-danger" onclick="closeCloudModal()">Cerrar</button>
-                    <button class="btn btn-gmail" onclick="saveWebhookUrl()">💾 Guardar y Sincronizar</button>
+                    <button class="btn btn-gmail" onclick="saveWebhookUrl()">💾 Guardar y Descargar de Nube</button>
                 </div>
             </div>
         </div>
@@ -783,18 +784,16 @@ function doPost(e) {
 
     <script>
         // =========================================================================
-        // TIP PARA GITHUB: Si pegas tu URL de Google Apps Script dentro de las
-        // comillas de DEFAULT_CLOUD_URL antes de subir el archivo a GitHub,
-        // cualquier equipo o portátil que abra el link de GitHub se conectará solo
-        // sin tener que configurar nada.
+        // URL DE GOOGLE APPS SCRIPT YA CONFIGURADA Y NORMALIZADA (SIN /a/macros/...)
         // =========================================================================
-        const DEFAULT_CLOUD_URL = "https://script.google.com/a/macros/e-somos.co/s/AKfycbyBW1SY00Do0rPx5aAOjITi6RtswPsgsRBkxXimfXXnpk-YOl8a_YGDkclkgG73DjI0/exec";
+        const DEFAULT_CLOUD_URL = "https://script.google.com/macros/s/AKfycbyBW1SY00Do0rPx5aAOjITi6RtswPsgsRBkxXimfXXnpk-YOl8a_YGDkclkgG73DjI0/exec";
 
         let activeSection = 'flota';
         let sigWidthPx = 280;
         let lastUpdatedAt = 0;
         let cloudSaveTimer = null;
         let isPulling = false;
+        let initialCloudSyncDone = false; // Bloquea cualquier subida accidental antes de leer primero la nube
 
         let tableData = {
             flota: [],
@@ -808,8 +807,17 @@ function doPost(e) {
 
         let savedSignatures = [];
 
+        // Normaliza enlaces corporativos (/a/macros/dominio/) al formato público (/macros/) para evitar bloqueos CORS
+        function normalizeScriptUrl(rawUrl) {
+            let clean = (rawUrl || '').trim();
+            if (!clean) return '';
+            clean = clean.replace(/\/a\/macros\/[^\/]+\/s\//, '/macros/s/');
+            return clean;
+        }
+
         function getCloudUrl() {
-            return (localStorage.getItem('esomos_gas_webhook_url') || DEFAULT_CLOUD_URL || '').trim();
+            const stored = localStorage.getItem('esomos_gas_webhook_url');
+            return normalizeScriptUrl(stored || DEFAULT_CLOUD_URL);
         }
 
         function setCloudStatus(state, text) {
@@ -859,12 +867,20 @@ function doPost(e) {
             };
         }
 
+        function parseTimestamp(val) {
+            if (!val) return 0;
+            if (typeof val === 'number') return val;
+            const parsed = Date.parse(val);
+            return isNaN(parsed) ? 0 : parsed;
+        }
+
         function applyFullStateObject(stateObj) {
             if (!stateObj || typeof stateObj !== 'object') return;
             isPulling = true;
             try {
-                if (stateObj.updatedAt) {
-                    lastUpdatedAt = stateObj.updatedAt;
+                const incomingTs = parseTimestamp(stateObj.updatedAt);
+                if (incomingTs > 0) {
+                    lastUpdatedAt = incomingTs;
                 }
                 if (stateObj.envelope) {
                     const env = stateObj.envelope;
@@ -909,7 +925,7 @@ function doPost(e) {
 
                 if (lastUpdatedAt > 0) {
                     const dt = new Date(lastUpdatedAt);
-                    document.getElementById('lastSyncInfo').textContent = 'Última edición: ' + dt.toLocaleTimeString();
+                    document.getElementById('lastSyncInfo').textContent = 'Último guardado en nube: ' + dt.toLocaleTimeString();
                 }
             } finally {
                 isPulling = false;
@@ -918,12 +934,12 @@ function doPost(e) {
 
         function saveToLocalMirror() {
             try {
-                localStorage.setItem('esomos_cloud_mirror_v3', JSON.stringify(buildFullStateObject()));
+                localStorage.setItem('esomos_cloud_mirror_v4', JSON.stringify(buildFullStateObject()));
             } catch (e) {}
         }
 
         // =========================================================================
-        // SINCRONIZACIÓN EN LA NUBE (PUSH & PULL ENTRE EQUIPOS)
+        // SINCRONIZACIÓN EN LA NUBE BLINDADA (PULL SIEMPRE TIENE PRIORIDAD AL ABRIR)
         // =========================================================================
         function scheduleCloudSave() {
             if (isPulling) return;
@@ -942,7 +958,7 @@ function doPost(e) {
             clearTimeout(cloudSaveTimer);
             cloudSaveTimer = setTimeout(() => {
                 pushToCloud(false);
-            }, 750);
+            }, 650);
         }
 
         async function pushToCloud(manual) {
@@ -951,18 +967,29 @@ function doPost(e) {
                 if (manual) openCloudModal();
                 return;
             }
+            // No permitir subidas automáticas si aún no se ha hecho la lectura inicial de la nube
+            if (!initialCloudSyncDone && !manual) {
+                return;
+            }
             if (lastUpdatedAt === 0) lastUpdatedAt = Date.now();
             setCloudStatus('syncing', 'Subiendo a la nube...');
 
             try {
+                const stateSnapshot = buildFullStateObject();
                 const payload = {
                     action: 'save_state',
-                    state: buildFullStateObject()
+                    state: stateSnapshot,
+                    // También incluimos los campos en raíz por si el script usa formato directo
+                    updatedAt: stateSnapshot.updatedAt,
+                    envelope: stateSnapshot.envelope,
+                    tableData: stateSnapshot.tableData,
+                    savedSignatures: stateSnapshot.savedSignatures
                 };
-                await fetch(url, {
+                const res = await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify(payload),
+                    redirect: 'follow'
                 });
                 const nowStr = new Date().toLocaleTimeString();
                 setCloudStatus('online', 'Nube Sincronizada (' + nowStr + ')');
@@ -973,36 +1000,63 @@ function doPost(e) {
             }
         }
 
+        // Extrae el estado real sin importar si el script devuelve { tableData... } o { ok: true, data: { state: ... } }
+        function unwrapCloudResponse(rawJson) {
+            if (!rawJson || typeof rawJson !== 'object') return null;
+            if (rawJson.tableData || rawJson.envelope) return rawJson;
+            if (rawJson.state && (rawJson.state.tableData || rawJson.state.envelope)) return rawJson.state;
+            if (rawJson.data) {
+                if (rawJson.data.tableData || rawJson.data.envelope) return rawJson.data;
+                if (rawJson.data.state && (rawJson.data.state.tableData || rawJson.data.state.envelope)) return rawJson.data.state;
+            }
+            return null;
+        }
+
         async function pullFromCloud(manual) {
             const url = getCloudUrl();
             if (!url) {
+                initialCloudSyncDone = true;
                 setCloudStatus('offline', 'Modo Local (Configurar Nube)');
                 if (manual) openCloudModal();
                 return;
             }
 
-            if (manual) setCloudStatus('syncing', 'Consultando nube...');
-            try {
-                const res = await fetch(url + '?t=' + Date.now(), {
-                    method: 'GET',
-                    redirect: 'follow'
-                });
-                const cloudState = await res.json();
+            if (manual || !initialCloudSyncDone) {
+                setCloudStatus('syncing', 'Descargando últimos datos de la nube...');
+            }
 
-                if (cloudState && cloudState.updatedAt) {
-                    if (manual || cloudState.updatedAt > lastUpdatedAt) {
+            try {
+                const sep = url.includes('?') ? '&' : '?';
+                const res = await fetch(url + sep + 'app=turno&t=' + Date.now(), {
+                    method: 'GET',
+                    redirect: 'follow',
+                    cache: 'no-store'
+                });
+                const rawJson = await res.json();
+                const cloudState = unwrapCloudResponse(rawJson);
+
+                if (cloudState) {
+                    const cloudTs = parseTimestamp(cloudState.updatedAt);
+                    // En la primera carga del navegador (!initialCloudSyncDone) o al pulsar Sincronizar (manual),
+                    // SIEMPRE manda lo que está guardado en la nube.
+                    if (!initialCloudSyncDone || manual || cloudTs > lastUpdatedAt) {
                         applyFullStateObject(cloudState);
-                        if (manual) showToast('🔄 Datos actualizados desde la nube');
+                        if (manual) showToast('🔄 Últimos datos cargados desde la nube');
                     }
                     const nowStr = new Date().toLocaleTimeString();
                     setCloudStatus('online', 'Nube Sincronizada (' + nowStr + ')');
                 } else {
-                    // La nube está vacía por primera vez: subimos lo que tenemos localmente
-                    await pushToCloud(false);
+                    // La nube está vacía (archivo recién creado "{}"), pero NO subimos nada automáticamente
+                    // para jamás pisar la nube con un PC vacío.
+                    const nowStr = new Date().toLocaleTimeString();
+                    setCloudStatus('online', 'Nube Conectada (' + nowStr + ')');
+                    document.getElementById('lastSyncInfo').textContent = 'Nube lista (esperando cambios)';
                 }
             } catch (err) {
                 setCloudStatus('offline', 'Sin conexión a nube');
-                if (manual) showToast('⚠️ No se pudo leer la nube. Revisa la URL en Configurar Nube.');
+                if (manual) showToast('⚠️ No se pudo leer la nube. Verifica que el script tenga acceso "Cualquier persona".');
+            } finally {
+                initialCloudSyncDone = true;
             }
         }
 
@@ -1345,7 +1399,6 @@ function doPost(e) {
             onTableDataChanged();
         }
 
-        // Permite cargar una fila existente de vuelta al formulario para corregirla rápido
         function editRow(secKey, index) {
             const row = tableData[secKey][index];
             if (!row) return;
@@ -1696,7 +1749,11 @@ function doPost(e) {
             document.getElementById('email-render-root').innerHTML = buildEmailHtml(false);
         }
 
-        function loadTemplateExample() {
+        // Ahora el ejemplo NUNCA se dispara solo al abrir la página; solo si el usuario oprime el botón manualmente y confirma
+        function loadTemplateExample(askConfirm) {
+            if (askConfirm && !confirm('¿Deseas reemplazar la tabla actual por los datos de ejemplo? (Esto sobrescribirá lo que haya en la nube)')) {
+                return;
+            }
             tableData = {
                 flota: [],
                 preventivos: [
@@ -1786,10 +1843,14 @@ function doPost(e) {
         }
 
         function saveWebhookUrl() {
-            const url = document.getElementById('inpWebhookUrl').value.trim();
-            localStorage.setItem('esomos_gas_webhook_url', url);
+            const url = normalizeScriptUrl(document.getElementById('inpWebhookUrl').value);
+            if (url) {
+                localStorage.setItem('esomos_gas_webhook_url', url);
+            } else {
+                localStorage.removeItem('esomos_gas_webhook_url');
+            }
             closeCloudModal();
-            showToast('URL de nube guardada. Sincronizando...');
+            showToast('URL guardada. Descargando estado de la nube...');
             pullFromCloud(true);
         }
 
@@ -1833,7 +1894,8 @@ function doPost(e) {
                 await fetch(webhookUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify(payload),
+                    redirect: 'follow'
                 });
                 showToast('✅ ¡Correo enviado exitosamente a ' + to + '!');
             } catch (err) {
@@ -1866,34 +1928,37 @@ function doPost(e) {
         }
 
         // =========================================================================
-        // INICIALIZACIÓN Y AUTO-SINCRONIZACIÓN ENTRE EQUIPOS
+        // INICIALIZACIÓN BLINDADA: NUNCA CARGA EL EJEMPLO SOLO NI PISA LA NUBE AL ABRIR
         // =========================================================================
-        window.addEventListener('DOMContentLoaded', () => {
-            const mirrorJson = localStorage.getItem('esomos_cloud_mirror_v3');
+        window.addEventListener('DOMContentLoaded', async () => {
+            // 1. Si este navegador ya tenía copia local previa, la muestra mientras consulta la nube,
+            //    pero NUNCA dispara loadTemplateExample() ni sube nada por su cuenta.
+            const mirrorJson = localStorage.getItem('esomos_cloud_mirror_v4') || localStorage.getItem('esomos_cloud_mirror_v3');
             if (mirrorJson) {
                 try {
                     const parsed = JSON.parse(mirrorJson);
                     applyFullStateObject(parsed);
                 } catch (e) {}
             } else {
-                loadTemplateExample();
+                updateBadges();
+                renderEmailPreview();
             }
 
             switchSection('preventivos');
             syncEnvelopeUI();
 
-            // Si ya hay URL de nube configurada, descarga de inmediato lo último editado en otro PC
+            // 2. Descarga inmediatamente lo que haya guardado en la nube (Google Drive manda)
             if (getCloudUrl()) {
-                pullFromCloud(false);
+                await pullFromCloud(false);
             } else {
+                initialCloudSyncDone = true;
                 setCloudStatus('offline', 'Modo Local (Configurar Nube)');
             }
 
-            // Polling cada 15 segundos para trabajo simultáneo entre equipos
+            // 3. Auto-actualización cada 15 segundos entre equipos
             setInterval(() => {
                 const autoPoll = document.getElementById('chkAutoPoll').checked;
-                if (!autoPoll || document.hidden || !getCloudUrl()) return;
-                // No interrumpir si el usuario está escribiendo dentro de un campo de texto
+                if (!autoPoll || document.hidden || !getCloudUrl() || !initialCloudSyncDone) return;
                 const activeTag = document.activeElement ? document.activeElement.tagName : '';
                 if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') return;
                 pullFromCloud(false);
