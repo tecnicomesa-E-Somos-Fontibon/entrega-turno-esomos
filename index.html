@@ -296,12 +296,12 @@
             color: #1b5e20;
         }
 
-        /* Added Rows List inside Form */
+        /* Added Rows List inside Form (Drag & Drop Sortable) */
         .rows-manager {
             margin-top: 12px;
             border-top: 1px dashed #cbd2d9;
             padding-top: 8px;
-            max-height: 200px;
+            max-height: 220px;
             overflow-y: auto;
         }
 
@@ -313,10 +313,45 @@
             border: 1px solid #e0e0e0;
             border-left: 4px solid #43a047;
             border-radius: 4px;
-            padding: 5px 8px;
+            padding: 6px 8px;
             margin-bottom: 5px;
             font-size: 0.77rem;
             gap: 6px;
+            cursor: grab;
+            user-select: none;
+            transition: transform 0.12s ease, box-shadow 0.12s ease, background-color 0.12s ease, border-color 0.12s ease;
+        }
+
+        .row-item:hover {
+            box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+            border-color: #a5d6a7;
+        }
+
+        .row-item:active {
+            cursor: grabbing;
+        }
+
+        .row-item.dragging {
+            opacity: 0.45;
+            background: #e8f5e9;
+            border: 1px dashed #2e7d32;
+        }
+
+        .row-item.drag-over {
+            border-top: 2px solid #1b5e20;
+            border-bottom: 2px solid #1b5e20;
+            background-color: #f1f8e9;
+            transform: scale(1.01);
+        }
+
+        .drag-handle {
+            color: #78909c;
+            font-size: 0.95rem;
+            line-height: 1;
+            cursor: grab;
+            padding-right: 2px;
+            display: inline-flex;
+            align-items: center;
         }
 
         .row-item-text {
@@ -429,6 +464,18 @@
             font-size: 11pt;
         }
 
+        /* Print-only subject title when using Ctrl+P */
+        .print-only-title {
+            display: none;
+            font-family: Calibri, Arial, sans-serif;
+            font-size: 16pt;
+            font-weight: bold;
+            color: #1b5e20;
+            border-bottom: 2px solid #2e7d32;
+            padding-bottom: 6px;
+            margin-bottom: 14px;
+        }
+
         /* Modal for Cloud + Auto-Email Setup */
         .modal-backdrop {
             position: fixed;
@@ -480,6 +527,9 @@
         }
 
         @media print {
+            @page {
+                margin: 10mm;
+            }
             body {
                 background: #fff;
                 -webkit-print-color-adjust: exact !important;
@@ -487,6 +537,9 @@
             }
             .topbar, .sidebar, .email-envelope-bar, #toast-msg, .modal-backdrop {
                 display: none !important;
+            }
+            .print-only-title {
+                display: block !important;
             }
             .main-grid {
                 display: block;
@@ -498,6 +551,7 @@
             }
             #email-render-root {
                 max-width: 100%;
+                padding: 4px;
             }
         }
     </style>
@@ -569,11 +623,11 @@
                 <div class="field-row-2">
                     <div class="field-group">
                         <label>Fecha del Turno</label>
-                        <input type="text" id="inpDate" value="29/10/2026" oninput="syncSubjectDate()">
+                        <input type="text" id="inpDate" value="30/10/2026" oninput="syncSubjectDate()">
                     </div>
                     <div class="field-group">
                         <label>Asunto del Correo</label>
-                        <input type="text" id="inpSubject" value="Entrega de turno oficina 29/10/2026" oninput="onEnvelopeChange()">
+                        <input type="text" id="inpSubject" value="Entrega de turno oficina 30/10/2026" oninput="onEnvelopeChange()">
                     </div>
                 </div>
                 <div class="field-group">
@@ -627,7 +681,10 @@
                 <div id="sectionFormInputs"></div>
 
                 <!-- List of Added Rows in Active Section -->
-                <div class="rows-manager" id="sectionRowsList"></div>
+                <div class="small-hint" style="margin-top:8px;color:#2e7d32;font-weight:600;">
+                    ↕️ Puedes agarrar y arrastrar los ítems de abajo para cambiar su orden:
+                </div>
+                <div class="rows-manager" id="sectionRowsList" style="margin-top:4px;"></div>
             </div>
 
             <!-- PASO 3: CIERRE Y CARGA DE FIRMAS EN PNG -->
@@ -684,7 +741,7 @@ Cordialmente,</textarea>
                     </div>
                     <div class="email-envelope-row">
                         <span class="email-envelope-label">Asunto:</span>
-                        <span id="envSubject" style="font-weight:700;">Entrega de turno oficina 29/10/2026</span>
+                        <span id="envSubject" style="font-weight:700;">Entrega de turno oficina 30/10/2026</span>
                     </div>
                 </div>
                 <div style="text-align:right;font-size:0.76rem;color:#555;">
@@ -696,8 +753,14 @@ Cordialmente,</textarea>
                 </div>
             </div>
 
-            <!-- CONTENIDO REAL QUE VA EN EL CUERPO DEL CORREO Y EN EL PDF -->
-            <div id="email-render-root"></div>
+            <!-- ÁREA VISIBLE DE CAPTURA PARA PDF (CON MÁRGENES INTERNAS PARA NO CORTAR BORDES) -->
+            <div id="pdf-capture-area" style="background:#ffffff;padding:14px 18px;width:100%;max-width:920px;margin:0 auto;box-sizing:border-box;">
+                <!-- Título del Asunto (se activa al generar PDF o al imprimir con Ctrl+P) -->
+                <div class="print-only-title" id="printTitleBanner" style="font-family:Calibri,Arial,sans-serif;font-size:15pt;font-weight:bold;color:#1b5e20;border-bottom:2px solid #2e7d32;padding-bottom:6px;margin-bottom:14px;">Entrega de turno oficina 30/10/2026</div>
+
+                <!-- CONTENIDO REAL QUE VA EN EL CUERPO DEL CORREO Y EN EL PDF -->
+                <div id="email-render-root"></div>
+            </div>
         </main>
 
     </div>
@@ -793,7 +856,8 @@ function doPost(e) {
         let lastUpdatedAt = 0;
         let cloudSaveTimer = null;
         let isPulling = false;
-        let initialCloudSyncDone = false; // Bloquea cualquier subida accidental antes de leer primero la nube
+        let initialCloudSyncDone = false;
+        let draggedRowIdx = null; // Índice del ítem arrastrado para reordenar
 
         let tableData = {
             flota: [],
@@ -807,7 +871,6 @@ function doPost(e) {
 
         let savedSignatures = [];
 
-        // Normaliza enlaces corporativos (/a/macros/dominio/) al formato público (/macros/) para evitar bloqueos CORS
         function normalizeScriptUrl(rawUrl) {
             let clean = (rawUrl || '').trim();
             if (!clean) return '';
@@ -832,10 +895,16 @@ function doPost(e) {
         function formatMovil(val) {
             let txt = (val || '').trim().toUpperCase();
             if (!txt) return '';
-            if (/^\d{4}$/.test(txt)) {
-                return 'Z66-' + txt;
-            }
+            // Convierte cualquier número de 4 dígitos suelto (ej. "7112 7111") en "Z66-7112 Z66-7111"
+            txt = txt.replace(/(^|\s)(\d{4})(?=\s|$)/g, '$1Z66-$2');
             return txt;
+        }
+
+        // Formatea la celda Movil para que cuando haya varios carros en una misma fila siempre queden uno debajo del otro
+        function renderMovilCell(val) {
+            let txt = (val || '').trim();
+            if (!txt) return '&nbsp;';
+            return txt.split(/\s+/).map(m => formatMovil(m)).join('<br>');
         }
 
         function splitMoviles(raw) {
@@ -967,7 +1036,6 @@ function doPost(e) {
                 if (manual) openCloudModal();
                 return;
             }
-            // No permitir subidas automáticas si aún no se ha hecho la lectura inicial de la nube
             if (!initialCloudSyncDone && !manual) {
                 return;
             }
@@ -979,13 +1047,12 @@ function doPost(e) {
                 const payload = {
                     action: 'save_state',
                     state: stateSnapshot,
-                    // También incluimos los campos en raíz por si el script usa formato directo
                     updatedAt: stateSnapshot.updatedAt,
                     envelope: stateSnapshot.envelope,
                     tableData: stateSnapshot.tableData,
                     savedSignatures: stateSnapshot.savedSignatures
                 };
-                const res = await fetch(url, {
+                await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                     body: JSON.stringify(payload),
@@ -1000,7 +1067,6 @@ function doPost(e) {
             }
         }
 
-        // Extrae el estado real sin importar si el script devuelve { tableData... } o { ok: true, data: { state: ... } }
         function unwrapCloudResponse(rawJson) {
             if (!rawJson || typeof rawJson !== 'object') return null;
             if (rawJson.tableData || rawJson.envelope) return rawJson;
@@ -1037,8 +1103,6 @@ function doPost(e) {
 
                 if (cloudState) {
                     const cloudTs = parseTimestamp(cloudState.updatedAt);
-                    // En la primera carga del navegador (!initialCloudSyncDone) o al pulsar Sincronizar (manual),
-                    // SIEMPRE manda lo que está guardado en la nube.
                     if (!initialCloudSyncDone || manual || cloudTs > lastUpdatedAt) {
                         applyFullStateObject(cloudState);
                         if (manual) showToast('🔄 Últimos datos cargados desde la nube');
@@ -1046,8 +1110,6 @@ function doPost(e) {
                     const nowStr = new Date().toLocaleTimeString();
                     setCloudStatus('online', 'Nube Sincronizada (' + nowStr + ')');
                 } else {
-                    // La nube está vacía (archivo recién creado "{}"), pero NO subimos nada automáticamente
-                    // para jamás pisar la nube con un PC vacío.
                     const nowStr = new Date().toLocaleTimeString();
                     setCloudStatus('online', 'Nube Conectada (' + nowStr + ')');
                     document.getElementById('lastSyncInfo').textContent = 'Nube lista (esperando cambios)';
@@ -1080,7 +1142,10 @@ function doPost(e) {
             } else {
                 ccRow.style.display = 'none';
             }
-            document.getElementById('envSubject').textContent = document.getElementById('inpSubject').value;
+            const subj = document.getElementById('inpSubject').value;
+            document.getElementById('envSubject').textContent = subj;
+            const printBanner = document.getElementById('printTitleBanner');
+            if (printBanner) printBanner.textContent = subj;
         }
 
         function onEnvelopeChange() {
@@ -1310,7 +1375,7 @@ function doPost(e) {
         }
 
         // =========================================================================
-        // AGREGAR, EDITAR Y ELIMINAR FILAS
+        // AGREGAR, EDITAR, REORDENAR (DRAG & DROP) Y ELIMINAR FILAS
         // =========================================================================
         function addRowFlota() {
             const moviles = splitMoviles(document.getElementById('f_movil').value);
@@ -1423,6 +1488,52 @@ function doPost(e) {
             onTableDataChanged();
         }
 
+        // --- DRAG AND DROP HANDLERS PARA INTERCAMBIAR / REORDENAR ÍTEMS ---
+        function handleRowDragStart(e, idx) {
+            draggedRowIdx = idx;
+            e.currentTarget.classList.add('dragging');
+            if (e.dataTransfer) {
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', String(idx));
+            }
+        }
+
+        function handleRowDragOver(e, idx) {
+            e.preventDefault();
+            if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+            const item = e.currentTarget;
+            if (draggedRowIdx !== null && draggedRowIdx !== idx) {
+                item.classList.add('drag-over');
+            }
+        }
+
+        function handleRowDragLeave(e) {
+            e.currentTarget.classList.remove('drag-over');
+        }
+
+        function handleRowDrop(e, targetIdx) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('drag-over');
+            const rows = tableData[activeSection];
+            if (!rows || draggedRowIdx === null || draggedRowIdx === targetIdx) {
+                draggedRowIdx = null;
+                return;
+            }
+            const movedItem = rows.splice(draggedRowIdx, 1)[0];
+            rows.splice(targetIdx, 0, movedItem);
+            draggedRowIdx = null;
+            onTableDataChanged();
+            showToast('↕️ Orden actualizado');
+        }
+
+        function handleRowDragEnd(e) {
+            e.currentTarget.classList.remove('dragging');
+            document.querySelectorAll('#sectionRowsList .row-item').forEach(el => {
+                el.classList.remove('drag-over', 'dragging');
+            });
+            draggedRowIdx = null;
+        }
+
         function onTableDataChanged() {
             updateBadges();
             renderSectionRowsList();
@@ -1441,9 +1552,17 @@ function doPost(e) {
                 const col1 = r.movil !== undefined ? (r.movil || '(Vacío)') : r.usuario;
                 const col2 = r.tipo !== undefined ? r.tipo : r.novedad;
                 return `
-                    <div class="row-item">
+                    <div class="row-item"
+                         draggable="true"
+                         ondragstart="handleRowDragStart(event, ${i})"
+                         ondragover="handleRowDragOver(event, ${i})"
+                         ondragleave="handleRowDragLeave(event)"
+                         ondrop="handleRowDrop(event, ${i})"
+                         ondragend="handleRowDragEnd(event)"
+                         title="Arrastra este ítem para cambiar su posición">
+                        <span class="drag-handle">⠿</span>
                         <span class="row-item-text"><strong>${col1}</strong> | ${col2} | ${r.obs || ''}</span>
-                        <div class="row-item-actions">
+                        <div class="row-item-actions" onmousedown="event.stopPropagation()">
                             <button class="row-btn-edit" onclick="editRow('${activeSection}', ${i})" title="Editar esta fila">✏️</button>
                             <button class="row-item-del" onclick="deleteRow('${activeSection}', ${i})" title="Quitar fila">✕</button>
                         </div>
@@ -1518,7 +1637,7 @@ function doPost(e) {
         }
 
         // =========================================================================
-        // RENDERIZADO DE LA TABLA VERTICAL EXACTA AL EXCEL (INLINE CSS PARA GMAIL)
+        // RENDERIZADO DE LA TABLA VERTICAL EXACTA AL EXCEL (9 COLUMNAS PROPORCIONALES)
         // =========================================================================
         function buildEmailHtml(useCidForImages) {
             const greeting = (document.getElementById('inpGreeting').value || '').replace(/\n/g, '<br>');
@@ -1529,11 +1648,11 @@ function doPost(e) {
             const cctvBarBg = useNeon ? '#00ff00' : '#8ed973';
             const grayBg = '#d9d9d9';
 
-            const cellBase = 'border:1px solid #000000;padding:3px 6px;text-align:center;font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#000000;';
+            const cellBase = 'border:1px solid #000000;padding:4px 6px;text-align:center;font-family:Calibri,Arial,sans-serif;font-size:10.5pt;color:#000000;word-wrap:break-word;overflow-wrap:break-word;vertical-align:middle;';
             const hdrGray = cellBase + 'background-color:' + grayBg + ';font-weight:bold;';
             const hdrGreenBar = cellBase + 'background-color:' + greenBarBg + ';font-weight:bold;';
             const hdrCctvBar = cellBase + 'background-color:' + cctvBarBg + ';font-weight:bold;';
-            const leftLabelStyle = cellBase + 'background-color:' + grayBg + ';font-weight:bold;vertical-align:middle;width:92px;';
+            const leftLabelStyle = cellBase + 'background-color:' + grayBg + ';font-weight:bold;vertical-align:middle;';
 
             const flotaRows = tableData.flota.length > 0 ? tableData.flota : [
                 { movil: '', tipo: '', obs: '' },
@@ -1563,85 +1682,100 @@ function doPost(e) {
             const ticsRowSpan = 1 + ticsRows.length;
             const pendTicsRowSpan = 1 + pendTicsRows.length;
 
+            // Colgroup de 9 columnas proporcionales que suman exactamente 100% para evitar cortes laterales
+            const colGroupHtml = `
+                <colgroup>
+                    <col style="width:9%;">
+                    <col style="width:10%;">
+                    <col style="width:14%;">
+                    <col style="width:10%;">
+                    <col style="width:10%;">
+                    <col style="width:23%;">
+                    <col style="width:8%;">
+                    <col style="width:8%;">
+                    <col style="width:8%;">
+                </colgroup>
+            `;
+
             let trs = '';
 
-            // --- 1. INSPECCIÓN FLOTA ---
-            trs += `<tr>
-                <td rowspan="${itsRowSpan}" style="${leftLabelStyle}">ITS</td>
-                <td colspan="7" style="${hdrGreenBar}">INSPECCIÓN FLOTA</td>
+            // --- 1. INSPECCIÓN FLOTA (9 columnas en total) ---
+            trs += `<tr data-row-type="sec-header">
+                <td rowspan="${itsRowSpan}" class="left-group-cell" data-group-label="ITS" style="${leftLabelStyle}">ITS</td>
+                <td colspan="8" style="${hdrGreenBar}">INSPECCIÓN FLOTA</td>
             </tr>`;
-            trs += `<tr>
-                <td style="${hdrGray}width:95px;">Movil</td>
-                <td style="${hdrGray}width:130px;">Tipo</td>
-                <td colspan="5" style="${hdrGray}">Observacion</td>
+            trs += `<tr data-row-type="sec-header">
+                <td style="${hdrGray}">Movil</td>
+                <td style="${hdrGray}">Tipo</td>
+                <td colspan="6" style="${hdrGray}">Observacion</td>
             </tr>`;
             flotaRows.forEach(r => {
-                trs += `<tr>
-                    <td style="${cellBase}height:21px;">${r.movil || '&nbsp;'}</td>
+                trs += `<tr data-row-type="data">
+                    <td style="${cellBase}height:21px;white-space:nowrap;">${renderMovilCell(r.movil)}</td>
                     <td style="${cellBase}">${r.tipo || '&nbsp;'}</td>
-                    <td colspan="5" style="${cellBase}">${r.obs || '&nbsp;'}</td>
+                    <td colspan="6" style="${cellBase}">${r.obs || '&nbsp;'}</td>
                 </tr>`;
             });
 
             // --- 2. MANTENIMIENTOS PREVENTIVOS ---
-            trs += `<tr>
-                <td colspan="7" style="${hdrGreenBar}">MANTENIMIENTOS PREVENTIVOS</td>
+            trs += `<tr data-row-type="sec-header">
+                <td colspan="8" style="${hdrGreenBar}">MANTENIMIENTOS PREVENTIVOS</td>
             </tr>`;
-            trs += `<tr>
+            trs += `<tr data-row-type="sec-header">
                 <td style="${hdrGray}">Movil</td>
                 <td style="${hdrGray}">Tipo</td>
-                <td colspan="2" style="${hdrGray}">Observacion</td>
+                <td colspan="3" style="${hdrGray}">Observacion</td>
                 <td colspan="2" style="${hdrGray}">OT</td>
-                <td style="${hdrGray}width:70px;">TICKET<br>MESA</td>
+                <td style="${hdrGray}">TICKET<br>MESA</td>
             </tr>`;
             prevRows.forEach(r => {
-                trs += `<tr>
-                    <td style="${cellBase}height:21px;">${r.movil || '&nbsp;'}</td>
+                trs += `<tr data-row-type="data">
+                    <td style="${cellBase}height:21px;white-space:nowrap;">${renderMovilCell(r.movil)}</td>
                     <td style="${cellBase}">${r.tipo || '&nbsp;'}</td>
-                    <td colspan="2" style="${cellBase}">${r.obs || '&nbsp;'}</td>
+                    <td colspan="3" style="${cellBase}">${r.obs || '&nbsp;'}</td>
                     <td colspan="2" style="${cellBase}font-weight:bold;">${r.ot || '&nbsp;'}</td>
                     <td style="${cellBase}">${r.ticket || '&nbsp;'}</td>
                 </tr>`;
             });
 
             // --- 3. CCTV ---
-            trs += `<tr>
-                <td colspan="7" style="${hdrCctvBar}">CCTV</td>
+            trs += `<tr data-row-type="sec-header">
+                <td colspan="8" style="${hdrCctvBar}">CCTV</td>
             </tr>`;
-            trs += `<tr>
+            trs += `<tr data-row-type="sec-header">
                 <td style="${hdrGray}">Movil</td>
                 <td style="${hdrGray}">Tipo</td>
-                <td style="${hdrGray}width:85px;">Ticket</td>
-                <td colspan="4" style="${hdrGray}">Observacion</td>
+                <td style="${hdrGray}">Ticket</td>
+                <td colspan="5" style="${hdrGray}">Observacion</td>
             </tr>`;
             cctvRows.forEach(r => {
-                trs += `<tr>
-                    <td style="${cellBase}height:21px;">${r.movil || '&nbsp;'}</td>
+                trs += `<tr data-row-type="data">
+                    <td style="${cellBase}height:21px;white-space:nowrap;">${renderMovilCell(r.movil)}</td>
                     <td style="${cellBase}">${r.tipo || '&nbsp;'}</td>
                     <td style="${cellBase}">${r.ticket || '&nbsp;'}</td>
-                    <td colspan="4" style="${cellBase}">${r.obs || '&nbsp;'}</td>
+                    <td colspan="5" style="${cellBase}">${r.obs || '&nbsp;'}</td>
                 </tr>`;
             });
 
             // --- 4. INTERVENCIONES / GARANTIAS ---
-            trs += `<tr>
-                <td colspan="7" style="${hdrGreenBar}">INTERVENCIONES / GARANTIAS</td>
+            trs += `<tr data-row-type="sec-header">
+                <td colspan="8" style="${hdrGreenBar}">INTERVENCIONES / GARANTIAS</td>
             </tr>`;
-            trs += `<tr>
+            trs += `<tr data-row-type="sec-header">
                 <td style="${hdrGray}">Movil</td>
                 <td style="${hdrGray}">Tipo</td>
                 <td style="${hdrGray}">Estado</td>
-                <td style="${hdrGray}width:340px;">Observacion</td>
-                <td style="${hdrGray}width:65px;">RT</td>
-                <td style="${hdrGray}width:75px;">OT</td>
-                <td style="${hdrGray}width:70px;">TICKET<br>MESA</td>
+                <td colspan="2" style="${hdrGray}">Observacion</td>
+                <td style="${hdrGray}">RT</td>
+                <td style="${hdrGray}">OT</td>
+                <td style="${hdrGray}">TICKET<br>MESA</td>
             </tr>`;
             intRows.forEach(r => {
-                trs += `<tr>
-                    <td style="${cellBase}height:21px;">${r.movil || '&nbsp;'}</td>
+                trs += `<tr data-row-type="data">
+                    <td style="${cellBase}height:21px;white-space:nowrap;">${renderMovilCell(r.movil)}</td>
                     <td style="${cellBase}">${r.tipo || '&nbsp;'}</td>
                     <td style="${cellBase}">${r.estado || '&nbsp;'}</td>
-                    <td style="${cellBase}">${r.obs || '&nbsp;'}</td>
+                    <td colspan="2" style="${cellBase}">${r.obs || '&nbsp;'}</td>
                     <td style="${cellBase}">${r.rt || '&nbsp;'}</td>
                     <td style="${cellBase}">${r.ot || '&nbsp;'}</td>
                     <td style="${cellBase}">${r.ticket || '&nbsp;'}</td>
@@ -1649,22 +1783,22 @@ function doPost(e) {
             });
 
             // --- 5. PENDIENTES (ITS) ---
-            trs += `<tr>
-                <td rowspan="${pendItsRowSpan}" style="${leftLabelStyle}">PENDIENTES</td>
+            trs += `<tr data-row-type="sec-header">
+                <td rowspan="${pendItsRowSpan}" class="left-group-cell" data-group-label="PENDIENTES" style="${leftLabelStyle}">PENDIENTES</td>
                 <td style="${hdrGray}">Movil</td>
                 <td style="${hdrGray}">Tipo</td>
                 <td style="${hdrGray}">Estado</td>
-                <td style="${hdrGray}">Observacion</td>
+                <td colspan="2" style="${hdrGray}">Observacion</td>
                 <td style="${hdrGray}">Rt</td>
                 <td style="${hdrGray}">OT</td>
                 <td style="${hdrGray}">TICKET<br>MESA</td>
             </tr>`;
             pendItsRows.forEach(r => {
-                trs += `<tr>
-                    <td style="${cellBase}height:21px;">${r.movil || '&nbsp;'}</td>
+                trs += `<tr data-row-type="data">
+                    <td style="${cellBase}height:21px;white-space:nowrap;">${renderMovilCell(r.movil)}</td>
                     <td style="${cellBase}">${r.tipo || '&nbsp;'}</td>
                     <td style="${cellBase}">${r.estado || '&nbsp;'}</td>
-                    <td style="${cellBase}">${r.obs || '&nbsp;'}</td>
+                    <td colspan="2" style="${cellBase}">${r.obs || '&nbsp;'}</td>
                     <td style="${cellBase}">${r.rt || '&nbsp;'}</td>
                     <td style="${cellBase}">${r.ot || '&nbsp;'}</td>
                     <td style="${cellBase}">${r.ticket || '&nbsp;'}</td>
@@ -1672,38 +1806,38 @@ function doPost(e) {
             });
 
             // --- 6. TICS ---
-            trs += `<tr>
-                <td rowspan="${ticsRowSpan}" style="${leftLabelStyle}">TICS</td>
+            trs += `<tr data-row-type="sec-header">
+                <td rowspan="${ticsRowSpan}" class="left-group-cell" data-group-label="TICS" style="${leftLabelStyle}">TICS</td>
                 <td style="${hdrGreenBar}">Usuario</td>
                 <td style="${hdrGreenBar}">Novedad</td>
                 <td style="${hdrGreenBar}">Ticket de mesa</td>
                 <td style="${hdrGreenBar}">Estado</td>
-                <td colspan="3" style="${hdrGreenBar}">Observación</td>
+                <td colspan="4" style="${hdrGreenBar}">Observación</td>
             </tr>`;
             ticsRows.forEach(r => {
-                trs += `<tr>
+                trs += `<tr data-row-type="data">
                     <td style="${cellBase}height:21px;">${r.usuario || '&nbsp;'}</td>
                     <td style="${cellBase}">${r.novedad || '&nbsp;'}</td>
                     <td style="${cellBase}">${r.ticket || '&nbsp;'}</td>
                     <td style="${cellBase}">${r.estado || '&nbsp;'}</td>
-                    <td colspan="3" style="${cellBase}">${r.obs || '&nbsp;'}</td>
+                    <td colspan="4" style="${cellBase}">${r.obs || '&nbsp;'}</td>
                 </tr>`;
             });
 
             // --- 7. PENDIENTES (FINAL) ---
-            trs += `<tr>
-                <td rowspan="${pendTicsRowSpan}" style="${leftLabelStyle}">PENDIENTES</td>
+            trs += `<tr data-row-type="sec-header">
+                <td rowspan="${pendTicsRowSpan}" class="left-group-cell" data-group-label="PENDIENTES" style="${leftLabelStyle}">PENDIENTES</td>
                 <td style="${hdrGray}">Movil</td>
                 <td style="${hdrGray}">Tipo</td>
                 <td style="${hdrGray}">Estado</td>
-                <td colspan="4" style="${hdrGray}">Observacion</td>
+                <td colspan="5" style="${hdrGray}">Observacion</td>
             </tr>`;
             pendTicsRows.forEach(r => {
-                trs += `<tr>
-                    <td style="${cellBase}height:21px;">${r.movil || '&nbsp;'}</td>
+                trs += `<tr data-row-type="data">
+                    <td style="${cellBase}height:21px;white-space:nowrap;">${renderMovilCell(r.movil)}</td>
                     <td style="${cellBase}">${r.tipo || '&nbsp;'}</td>
                     <td style="${cellBase}">${r.estado || '&nbsp;'}</td>
-                    <td colspan="4" style="${cellBase}">${r.obs || '&nbsp;'}</td>
+                    <td colspan="5" style="${cellBase}">${r.obs || '&nbsp;'}</td>
                 </tr>`;
             });
 
@@ -1713,7 +1847,7 @@ function doPost(e) {
 
             if (activeSigs.length > 0) {
                 if (sigLayout === 'horizontal') {
-                    sigsHtml = `<table style="border-collapse:collapse;border:none;margin-top:12px;"><tr>`;
+                    sigsHtml = `<table class="pdf-sig-unit" style="border-collapse:collapse;border:none;margin-top:12px;page-break-inside:avoid;break-inside:avoid;"><tr>`;
                     activeSigs.forEach((s, idx) => {
                         const imgSrc = useCidForImages ? `cid:sig_img_${idx}` : s.dataUrl;
                         sigsHtml += `<td style="border:none;padding-right:24px;vertical-align:top;">
@@ -1725,7 +1859,7 @@ function doPost(e) {
                     sigsHtml = `<div style="margin-top:12px;">`;
                     activeSigs.forEach((s, idx) => {
                         const imgSrc = useCidForImages ? `cid:sig_img_${idx}` : s.dataUrl;
-                        sigsHtml += `<div style="margin-bottom:14px;">
+                        sigsHtml += `<div class="pdf-sig-unit" style="margin-bottom:14px;page-break-inside:avoid;break-inside:avoid;">
                             <img src="${imgSrc}" alt="${s.name}" width="${sigWidthPx}" style="width:${sigWidthPx}px;max-width:100%;height:auto;display:block;">
                         </div>`;
                     });
@@ -1734,13 +1868,16 @@ function doPost(e) {
             }
 
             return `
-                <div style="font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#000000;">
-                    <p style="margin:0 0 14px 0;">${greeting}</p>
-                    <table style="width:100%;max-width:980px;border-collapse:collapse;border:2px solid #000000;background-color:#ffffff;">
+                <div style="font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#000000;width:100%;box-sizing:border-box;">
+                    <p class="pdf-greeting-p" style="margin:0 0 12px 0;">${greeting}</p>
+                    <table class="main-handover-table" style="width:100%;table-layout:fixed;border-collapse:collapse;border:2px solid #000000;background-color:#ffffff;">
+                        ${colGroupHtml}
                         ${trs}
                     </table>
-                    <p style="margin:16px 0 10px 0;line-height:1.45;">${closing}</p>
-                    ${sigsHtml}
+                    <div class="closing-and-signatures-block" style="page-break-inside:avoid;break-inside:avoid;">
+                        <p class="pdf-closing-p" style="margin:16px 0 10px 0;line-height:1.45;">${closing}</p>
+                        ${sigsHtml}
+                    </div>
                 </div>
             `;
         }
@@ -1749,7 +1886,6 @@ function doPost(e) {
             document.getElementById('email-render-root').innerHTML = buildEmailHtml(false);
         }
 
-        // Ahora el ejemplo NUNCA se dispara solo al abrir la página; solo si el usuario oprime el botón manualmente y confirma
         function loadTemplateExample(askConfirm) {
             if (askConfirm && !confirm('¿Deseas reemplazar la tabla actual por los datos de ejemplo? (Esto sobrescribirá lo que haya en la nube)')) {
                 return;
@@ -1903,18 +2039,260 @@ function doPost(e) {
             }
         }
 
-        function downloadPDF() {
-            const element = document.getElementById('email-render-root');
+        // =========================================================================
+        // PAGINACIÓN INTELIGENTE DE PDF: CORTA EXACTAMENTE EN RENGLONES (FILAS)
+        // Y NUNCA CORTA TEXTO DE TAREAS NI IMÁGENES PNG DE FIRMAS A LA MITAD
+        // =========================================================================
+        function measureSafePdfCuts(rootEl) {
+            const rootRect = rootEl.getBoundingClientRect();
+            const rootW = rootRect.width || rootEl.offsetWidth || 1;
+            const rootH = rootRect.height || rootEl.offsetHeight || 1;
+
+            const safeCuts = new Set();
+
+            // 1. Título y saludo inicial
+            const titleEl = rootEl.querySelector('#printTitleBanner');
+            if (titleEl && titleEl.offsetHeight > 0) {
+                safeCuts.add(titleEl.getBoundingClientRect().bottom - rootRect.top);
+            }
+            const greetingEl = rootEl.querySelector('.pdf-greeting-p');
+            if (greetingEl) {
+                safeCuts.add(greetingEl.getBoundingClientRect().bottom - rootRect.top);
+            }
+
+            // 2. Filas de datos de la tabla (cortar siempre en la línea divisoria entre renglones,
+            //    nunca a mitad de un texto ni dejando un título verde/gris huérfano al final de la hoja)
+            const mainTable = rootEl.querySelector('table.main-handover-table');
+            let tableBounds = null;
+            const leftGroupCells = [];
+
+            if (mainTable) {
+                const tRect = mainTable.getBoundingClientRect();
+                tableBounds = {
+                    top: tRect.top - rootRect.top,
+                    bottom: tRect.bottom - rootRect.top,
+                    left: tRect.left - rootRect.left,
+                    right: tRect.right - rootRect.left
+                };
+
+                const allRows = Array.from(mainTable.querySelectorAll('tr'));
+                allRows.forEach((tr) => {
+                    if (tr.getAttribute('data-row-type') === 'data') {
+                        const rRect = tr.getBoundingClientRect();
+                        safeCuts.add(rRect.bottom - rootRect.top);
+                    }
+                });
+
+                // El borde inferior de la tabla completa es un corte seguro antes de "Quedamos atentos..."
+                safeCuts.add(tableBounds.bottom);
+
+                // Guardar coordenadas de la columna izquierda gris (ITS, PENDIENTES, TICS)
+                // para que si la página corta esa sección, el texto "ITS" no quede partido a la mitad
+                const groupEls = Array.from(mainTable.querySelectorAll('td.left-group-cell'));
+                groupEls.forEach((td) => {
+                    const gRect = td.getBoundingClientRect();
+                    leftGroupCells.push({
+                        label: td.getAttribute('data-group-label') || td.textContent.trim(),
+                        top: gRect.top - rootRect.top,
+                        bottom: gRect.bottom - rootRect.top,
+                        left: gRect.left - rootRect.left,
+                        right: gRect.right - rootRect.left
+                    });
+                });
+            }
+
+            // 3. Bloques de firmas PNG: nunca permitir un corte dentro de una imagen de firma.
+            //    Además, mantenemos "Quedamos atentos..." unido a la primera firma para que no quede suelto.
+            const sigUnits = Array.from(rootEl.querySelectorAll('.pdf-sig-unit'));
+            if (sigUnits.length === 0) {
+                const closingEl = rootEl.querySelector('.pdf-closing-p');
+                if (closingEl) {
+                    safeCuts.add(closingEl.getBoundingClientRect().bottom - rootRect.top);
+                }
+            } else {
+                sigUnits.forEach((su) => {
+                    const suRect = su.getBoundingClientRect();
+                    safeCuts.add(suRect.bottom - rootRect.top);
+                });
+            }
+
+            const sortedCuts = Array.from(safeCuts)
+                .filter(y => y > 10 && y <= rootH + 4)
+                .sort((a, b) => a - b);
+
+            return {
+                rootW,
+                rootH,
+                safeCuts: sortedCuts,
+                tableBounds,
+                leftGroupCells
+            };
+        }
+
+        function repackCanvasAtSafeRowCuts(origCanvas, pageSize, domMetrics) {
+            const cw = origCanvas.width;
+            const ch = origCanvas.height;
+            const pxPageHeight = Math.floor(cw * (pageSize.inner.height / pageSize.inner.width));
+
+            // Si todo cabe en una sola página A4, no hay nada que partir
+            if (ch <= pxPageHeight) {
+                return origCanvas;
+            }
+
+            const scaleY = ch / domMetrics.rootH;
+            const scaleX = cw / domMetrics.rootW;
+            const canvasCuts = domMetrics.safeCuts.map(y => Math.round(y * scaleY));
+            const borderPadPx = Math.max(4, Math.round(3 * scaleY));
+
+            const slices = [];
+            let currY = 0;
+
+            while (currY < ch - 2) {
+                if (ch - currY <= pxPageHeight) {
+                    slices.push({ startY: currY, endY: ch });
+                    break;
+                }
+                const maxEndY = currY + pxPageHeight - borderPadPx;
+                let chosenEndY = -1;
+
+                for (let i = 0; i < canvasCuts.length; i++) {
+                    const cutY = canvasCuts[i];
+                    if (cutY > currY + 40 && cutY <= maxEndY) {
+                        chosenEndY = cutY;
+                    }
+                }
+
+                if (chosenEndY === -1) {
+                    chosenEndY = maxEndY;
+                }
+
+                slices.push({ startY: currY, endY: chosenEndY });
+                currY = chosenEndY;
+            }
+
+            // Respaldar el canvas original antes de redimensionarlo por páginas exactas
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = cw;
+            tempCanvas.height = ch;
+            tempCanvas.getContext('2d').drawImage(origCanvas, 0, 0);
+
+            origCanvas.height = slices.length * pxPageHeight;
+            const ctx = origCanvas.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, cw, origCanvas.height);
+
+            const tTop = domMetrics.tableBounds ? Math.round(domMetrics.tableBounds.top * scaleY) : -1;
+            const tBottom = domMetrics.tableBounds ? Math.round(domMetrics.tableBounds.bottom * scaleY) : -1;
+            const tLeft = domMetrics.tableBounds ? Math.round(domMetrics.tableBounds.left * scaleX) : 0;
+            const tRight = domMetrics.tableBounds ? Math.round(domMetrics.tableBounds.right * scaleX) : cw;
+            const lineThickness = Math.max(2, Math.round(1.5 * scaleY));
+
+            slices.forEach((sl, idx) => {
+                const destY = idx * pxPageHeight;
+                const sliceH = sl.endY - sl.startY;
+
+                ctx.drawImage(tempCanvas, 0, sl.startY, cw, sliceH, 0, destY, cw, sliceH);
+
+                // Si una celda izquierda con rowspan (ej. "ITS") fue dividida entre dos páginas,
+                // limpiar la mitad del texto cortado y centrar la etiqueta "ITS" en cada tramo
+                if (domMetrics.leftGroupCells && domMetrics.leftGroupCells.length > 0) {
+                    domMetrics.leftGroupCells.forEach((gc) => {
+                        const gTop = Math.round(gc.top * scaleY);
+                        const gBottom = Math.round(gc.bottom * scaleY);
+                        const gLeft = Math.round(gc.left * scaleX);
+                        const gRight = Math.round(gc.right * scaleX);
+
+                        const overlaps = (gTop < sl.endY && gBottom > sl.startY);
+                        const wasSplit = (gTop < sl.startY || gBottom > sl.endY);
+
+                        if (overlaps && wasSplit) {
+                            const segStart = Math.max(gTop, sl.startY);
+                            const segEnd = Math.min(gBottom, sl.endY);
+                            const segH = segEnd - segStart;
+                            const drawTop = destY + (segStart - sl.startY);
+
+                            if (segH > lineThickness * 2) {
+                                ctx.fillStyle = '#d9d9d9';
+                                ctx.fillRect(
+                                    gLeft + lineThickness,
+                                    drawTop + lineThickness,
+                                    (gRight - gLeft) - lineThickness * 2,
+                                    segH - lineThickness * 2
+                                );
+                                if (segH >= Math.round(22 * scaleY)) {
+                                    ctx.fillStyle = '#000000';
+                                    ctx.font = 'bold ' + Math.round(14 * scaleY) + 'px Calibri, Arial, sans-serif';
+                                    ctx.textAlign = 'center';
+                                    ctx.textBaseline = 'middle';
+                                    ctx.fillText(gc.label, (gLeft + gRight) / 2, drawTop + segH / 2);
+                                }
+                            }
+                        }
+                    });
+                }
+
+                // Cerrar con borde negro horizontal limpio si el salto de página cayó dentro de la tabla
+                ctx.fillStyle = '#000000';
+                if (tTop >= 0 && sl.startY > tTop + 2 && sl.startY < tBottom - 2) {
+                    ctx.fillRect(tLeft, destY, tRight - tLeft, lineThickness);
+                }
+                if (tTop >= 0 && sl.endY > tTop + 2 && sl.endY < tBottom - 2) {
+                    ctx.fillRect(tLeft, destY + sliceH - lineThickness, tRight - tLeft, lineThickness);
+                }
+            });
+
+            return origCanvas;
+        }
+
+        async function downloadPDF() {
+            const captureEl = document.getElementById('pdf-capture-area');
+            const titleBanner = document.getElementById('printTitleBanner');
+            const subjectTitle = document.getElementById('inpSubject').value.trim() || 'Entrega de turno oficina';
             const dateClean = document.getElementById('inpDate').value.trim().replace(/\//g, '_');
+
+            titleBanner.textContent = subjectTitle;
+            titleBanner.style.display = 'block';
+
+            const prevScrollY = window.scrollY;
+            window.scrollTo(0, 0);
+
             const opt = {
-                margin: [8, 8, 8, 8],
+                margin: [10, 10, 10, 10],
                 filename: `Entrega_de_turno_oficina_${dateClean}.pdf`,
                 image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2, useCORS: true },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                html2canvas: {
+                    scale: 2,
+                    useCORS: true,
+                    backgroundColor: '#ffffff'
+                },
+                jsPDF: {
+                    unit: 'mm',
+                    format: 'a4',
+                    orientation: 'portrait'
+                }
             };
-            showToast('Generando PDF vertical...');
-            html2pdf().set(opt).from(element).save();
+
+            showToast('Generando PDF con cortes limpios por renglón...');
+            try {
+                let domMetrics = null;
+                const worker = html2pdf().set(opt).from(captureEl).toContainer();
+
+                await worker.then(function () {
+                    const clonedRoot = this.prop.container || captureEl;
+                    domMetrics = measureSafePdfCuts(clonedRoot);
+                });
+
+                await worker.toCanvas().then(function () {
+                    if (this.prop.canvas && this.prop.pageSize && domMetrics) {
+                        repackCanvasAtSafeRowCuts(this.prop.canvas, this.prop.pageSize, domMetrics);
+                    }
+                });
+
+                await worker.toPdf().save();
+            } finally {
+                titleBanner.style.display = '';
+                window.scrollTo(0, prevScrollY);
+            }
         }
 
         function showToast(msg) {
@@ -1931,8 +2309,6 @@ function doPost(e) {
         // INICIALIZACIÓN BLINDADA: NUNCA CARGA EL EJEMPLO SOLO NI PISA LA NUBE AL ABRIR
         // =========================================================================
         window.addEventListener('DOMContentLoaded', async () => {
-            // 1. Si este navegador ya tenía copia local previa, la muestra mientras consulta la nube,
-            //    pero NUNCA dispara loadTemplateExample() ni sube nada por su cuenta.
             const mirrorJson = localStorage.getItem('esomos_cloud_mirror_v4') || localStorage.getItem('esomos_cloud_mirror_v3');
             if (mirrorJson) {
                 try {
@@ -1947,7 +2323,6 @@ function doPost(e) {
             switchSection('preventivos');
             syncEnvelopeUI();
 
-            // 2. Descarga inmediatamente lo que haya guardado en la nube (Google Drive manda)
             if (getCloudUrl()) {
                 await pullFromCloud(false);
             } else {
@@ -1955,7 +2330,6 @@ function doPost(e) {
                 setCloudStatus('offline', 'Modo Local (Configurar Nube)');
             }
 
-            // 3. Auto-actualización cada 15 segundos entre equipos
             setInterval(() => {
                 const autoPoll = document.getElementById('chkAutoPoll').checked;
                 if (!autoPoll || document.hidden || !getCloudUrl() || !initialCloudSyncDone) return;
