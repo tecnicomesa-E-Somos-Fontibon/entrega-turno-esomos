@@ -603,6 +603,29 @@
         <!-- PANEL IZQUIERDO: FORMULARIO -->
         <aside class="sidebar">
 
+            <!-- SELECTOR DE TÉCNICO (ENTREGAS DE TURNO INDEPENDIENTES EN LA NUBE) -->
+            <div class="card-box" style="background:linear-gradient(135deg, #e8f5e9, #f1f8e9);border:2px solid #2e7d32;">
+                <h3 style="margin-bottom:8px;border-bottom-color:#66bb6a;">
+                    <span>👤 Entrega de Turno de:</span>
+                    <span id="techActiveBadge" style="font-size:0.74rem;background:#2e7d32;color:#fff;padding:2px 8px;border-radius:12px;">Mateo Pinto</span>
+                </h3>
+                <div style="display:flex;gap:6px;align-items:center;">
+                    <select id="techProfileSelect" onchange="switchTechnicianProfile(this.value)" style="flex:1;font-weight:700;color:#1b5e20;border:1px solid #2e7d32;"></select>
+                    <button class="btn" style="background:#2e7d32;color:#fff;padding:7px 10px;" onclick="toggleAddTechBox()" title="Agregar nuevo técnico a la lista">➕ Nuevo</button>
+                    <button class="btn btn-danger" style="padding:7px 9px;" onclick="deleteCurrentTechnician()" title="Eliminar técnico seleccionado">🗑️</button>
+                </div>
+                <div id="addTechBox" style="display:none;margin-top:8px;padding-top:8px;border-top:1px dashed #81c784;">
+                    <label style="font-size:0.75rem;color:#1b5e20;">Nombre del nuevo técnico:</label>
+                    <div style="display:flex;gap:6px;">
+                        <input type="text" id="inpNewTechName" placeholder="Ej: Jonathan Guarin" onkeydown="if(event.key==='Enter'){event.preventDefault();confirmAddTechnician();}">
+                        <button class="btn btn-gmail" onclick="confirmAddTechnician()">Guardar</button>
+                    </div>
+                </div>
+                <div class="small-hint" style="color:#1b5e20;margin-top:5px;">
+                    Cada técnico guarda su propia entrega de turno en la nube de forma independiente.
+                </div>
+            </div>
+
             <!-- PASO 1: DATOS DE CORREO Y SALUDO -->
             <div class="card-box">
                 <h3>1. Datos de Envío del Correo</h3>
@@ -859,6 +882,11 @@ function doPost(e) {
         let initialCloudSyncDone = false;
         let draggedRowIdx = null; // Índice del ítem arrastrado para reordenar
 
+        // Gestión de perfiles independientes por técnico
+        let techniciansList = ['Mateo Pinto', 'Jonathan Guarin'];
+        let currentTech = localStorage.getItem('esomos_active_tech_v1') || 'Mateo Pinto';
+        let profilesByTech = {};
+
         let tableData = {
             flota: [],
             preventivos: [],
@@ -870,6 +898,34 @@ function doPost(e) {
         };
 
         let savedSignatures = [];
+
+        function getEmptyTableData() {
+            return {
+                flota: [],
+                preventivos: [],
+                cctv: [],
+                intervenciones: [],
+                pendientes_its: [],
+                tics: [],
+                pendientes_tics: []
+            };
+        }
+
+        function getDefaultEnvelope() {
+            const d = document.getElementById('inpDate') ? document.getElementById('inpDate').value : '30/10/2026';
+            return {
+                from: 'tecnicomesaits@e-somos.co',
+                to: 'jsierra@e-somos.co',
+                cc: '',
+                date: d,
+                subject: 'Entrega de turno oficina ' + d,
+                greeting: 'Cordial saludo.',
+                closing: 'Quedamos atentos a sus comentarios.\nCordialmente,',
+                neonCctv: true,
+                sigWidthPx: 280,
+                sigLayout: 'horizontal'
+            };
+        }
 
         function normalizeScriptUrl(rawUrl) {
             let clean = (rawUrl || '').trim();
@@ -907,6 +963,14 @@ function doPost(e) {
             return txt.split(/\s+/).map(m => formatMovil(m)).join('<br>');
         }
 
+        // Formatea celdas de códigos (OT, RT, Ticket) para que múltiples códigos se apilen verticalmente uno debajo del otro
+        function renderStackedCodeCell(val) {
+            let txt = (val || '').trim();
+            if (!txt) return '&nbsp;';
+            if (txt.toUpperCase() === 'N/A') return 'N/A';
+            return txt.split(/[\s,;]+/).filter(Boolean).join('<br>');
+        }
+
         function splitMoviles(raw) {
             let cleaned = (raw || '').trim();
             if (!cleaned) return [''];
@@ -914,23 +978,176 @@ function doPost(e) {
         }
 
         // =========================================================================
-        // EMPAQUETAR Y DESEMPAQUETAR ESTADO COMPLETO (PARA LOCAL Y NUBE)
+        // GESTIÓN DE PERFILES POR TÉCNICO Y EMPAQUETADO PARA LA NUBE
         // =========================================================================
+        function getCurrentEnvelopeFromDOM() {
+            return {
+                from: document.getElementById('inpFrom').value,
+                to: document.getElementById('inpTo').value,
+                cc: document.getElementById('inpCc').value,
+                date: document.getElementById('inpDate').value,
+                subject: document.getElementById('inpSubject').value,
+                greeting: document.getElementById('inpGreeting').value,
+                closing: document.getElementById('inpClosing').value,
+                neonCctv: document.getElementById('chkNeonCctv').checked,
+                sigWidthPx: sigWidthPx,
+                sigLayout: document.getElementById('sigLayoutSelect').value
+            };
+        }
+
+        function saveCurrentTechToMemory(tsOverride) {
+            if (!currentTech) return;
+            const ts = tsOverride !== undefined ? tsOverride : (profilesByTech[currentTech]?.updatedAt || lastUpdatedAt || Date.now());
+            profilesByTech[currentTech] = {
+                updatedAt: ts,
+                envelope: getCurrentEnvelopeFromDOM(),
+                tableData: JSON.parse(JSON.stringify(tableData)),
+                activeSigIds: savedSignatures.filter(s => s.active).map(s => s.id)
+            };
+        }
+
+        function renderTechDropdown() {
+            const sel = document.getElementById('techProfileSelect');
+            const badge = document.getElementById('techActiveBadge');
+            if (!sel) return;
+            if (!techniciansList.includes(currentTech)) {
+                currentTech = techniciansList[0] || 'Mateo Pinto';
+                if (!techniciansList.includes(currentTech)) techniciansList.push(currentTech);
+            }
+            sel.innerHTML = techniciansList.map(t => `<option value="${t}" ${t === currentTech ? 'selected' : ''}>${t}</option>`).join('');
+            if (badge) badge.textContent = currentTech;
+        }
+
+        function loadTechProfileIntoDOM(techName) {
+            isPulling = true;
+            try {
+                currentTech = techName;
+                localStorage.setItem('esomos_active_tech_v1', currentTech);
+                renderTechDropdown();
+
+                if (!profilesByTech[currentTech]) {
+                    profilesByTech[currentTech] = {
+                        updatedAt: 0,
+                        envelope: getDefaultEnvelope(),
+                        tableData: getEmptyTableData(),
+                        activeSigIds: savedSignatures.filter(s => s.active).map(s => s.id)
+                    };
+                }
+
+                const prof = profilesByTech[currentTech];
+                const env = prof.envelope || getDefaultEnvelope();
+                if (env.from !== undefined) document.getElementById('inpFrom').value = env.from;
+                if (env.to !== undefined) document.getElementById('inpTo').value = env.to;
+                if (env.cc !== undefined) document.getElementById('inpCc').value = env.cc;
+                if (env.date !== undefined) document.getElementById('inpDate').value = env.date;
+                if (env.subject !== undefined) document.getElementById('inpSubject').value = env.subject;
+                if (env.greeting !== undefined) document.getElementById('inpGreeting').value = env.greeting;
+                if (env.closing !== undefined) document.getElementById('inpClosing').value = env.closing;
+                if (env.neonCctv !== undefined) document.getElementById('chkNeonCctv').checked = !!env.neonCctv;
+                if (env.sigWidthPx !== undefined) {
+                    sigWidthPx = parseInt(env.sigWidthPx, 10) || 280;
+                    document.getElementById('sigWidthSlider').value = sigWidthPx;
+                    document.getElementById('sigSizeLabel').textContent = sigWidthPx + 'px';
+                }
+                if (env.sigLayout !== undefined) {
+                    document.getElementById('sigLayoutSelect').value = env.sigLayout;
+                }
+
+                tableData = Object.assign(getEmptyTableData(), JSON.parse(JSON.stringify(prof.tableData || {})));
+
+                if (Array.isArray(prof.activeSigIds) && savedSignatures.length > 0) {
+                    savedSignatures.forEach(s => {
+                        s.active = prof.activeSigIds.includes(s.id);
+                    });
+                }
+
+                syncEnvelopeUI();
+                updateBadges();
+                renderSectionForm();
+                renderSectionRowsList();
+                renderSavedSignaturesList();
+                renderEmailPreview();
+
+                if (prof.updatedAt > 0) {
+                    const dt = new Date(prof.updatedAt);
+                    document.getElementById('lastSyncInfo').textContent = `Turno de ${currentTech} (${dt.toLocaleTimeString()})`;
+                } else {
+                    document.getElementById('lastSyncInfo').textContent = `Turno de ${currentTech} (Sin cambios aún)`;
+                }
+            } finally {
+                isPulling = false;
+            }
+        }
+
+        function switchTechnicianProfile(newTechName) {
+            if (!newTechName || newTechName === currentTech) return;
+            saveCurrentTechToMemory();
+            loadTechProfileIntoDOM(newTechName);
+            saveToLocalMirror();
+            showToast('👤 Cambiado a la entrega de turno de: ' + newTechName);
+        }
+
+        function toggleAddTechBox() {
+            const box = document.getElementById('addTechBox');
+            const inp = document.getElementById('inpNewTechName');
+            if (box.style.display === 'none') {
+                box.style.display = 'block';
+                inp.value = '';
+                inp.focus();
+            } else {
+                box.style.display = 'none';
+            }
+        }
+
+        function confirmAddTechnician() {
+            const inp = document.getElementById('inpNewTechName');
+            const name = (inp.value || '').trim();
+            if (!name) return;
+
+            saveCurrentTechToMemory();
+
+            if (!techniciansList.includes(name)) {
+                techniciansList.push(name);
+            }
+            if (!profilesByTech[name]) {
+                profilesByTech[name] = {
+                    updatedAt: Date.now(),
+                    envelope: getDefaultEnvelope(),
+                    tableData: getEmptyTableData(),
+                    activeSigIds: savedSignatures.filter(s => s.active).map(s => s.id)
+                };
+            }
+
+            document.getElementById('addTechBox').style.display = 'none';
+            loadTechProfileIntoDOM(name);
+            scheduleCloudSave();
+            showToast('✅ Técnico agregado: ' + name);
+        }
+
+        function deleteCurrentTechnician() {
+            if (techniciansList.length <= 1) {
+                alert('Debe existir al menos un técnico en la lista.');
+                return;
+            }
+            if (!confirm(`¿Seguro que deseas eliminar el perfil de "${currentTech}" y su entrega guardada?`)) return;
+
+            const removed = currentTech;
+            techniciansList = techniciansList.filter(t => t !== removed);
+            delete profilesByTech[removed];
+
+            const nextTech = techniciansList[0];
+            loadTechProfileIntoDOM(nextTech);
+            scheduleCloudSave();
+            showToast('🗑️ Técnico eliminado: ' + removed);
+        }
+
         function buildFullStateObject() {
+            saveCurrentTechToMemory(lastUpdatedAt);
             return {
                 updatedAt: lastUpdatedAt,
-                envelope: {
-                    from: document.getElementById('inpFrom').value,
-                    to: document.getElementById('inpTo').value,
-                    cc: document.getElementById('inpCc').value,
-                    date: document.getElementById('inpDate').value,
-                    subject: document.getElementById('inpSubject').value,
-                    greeting: document.getElementById('inpGreeting').value,
-                    closing: document.getElementById('inpClosing').value,
-                    neonCctv: document.getElementById('chkNeonCctv').checked,
-                    sigWidthPx: sigWidthPx,
-                    sigLayout: document.getElementById('sigLayoutSelect').value
-                },
+                techniciansList: techniciansList,
+                profilesByTech: profilesByTech,
+                envelope: getCurrentEnvelopeFromDOM(),
                 tableData: tableData,
                 savedSignatures: savedSignatures
             };
@@ -948,54 +1165,52 @@ function doPost(e) {
             isPulling = true;
             try {
                 const incomingTs = parseTimestamp(stateObj.updatedAt);
-                if (incomingTs > 0) {
+                if (incomingTs > lastUpdatedAt) {
                     lastUpdatedAt = incomingTs;
                 }
-                if (stateObj.envelope) {
-                    const env = stateObj.envelope;
-                    if (env.from !== undefined) document.getElementById('inpFrom').value = env.from;
-                    if (env.to !== undefined) document.getElementById('inpTo').value = env.to;
-                    if (env.cc !== undefined) document.getElementById('inpCc').value = env.cc;
-                    if (env.date !== undefined) document.getElementById('inpDate').value = env.date;
-                    if (env.subject !== undefined) document.getElementById('inpSubject').value = env.subject;
-                    if (env.greeting !== undefined) document.getElementById('inpGreeting').value = env.greeting;
-                    if (env.closing !== undefined) document.getElementById('inpClosing').value = env.closing;
-                    if (env.neonCctv !== undefined) document.getElementById('chkNeonCctv').checked = !!env.neonCctv;
-                    if (env.sigWidthPx !== undefined) {
-                        sigWidthPx = parseInt(env.sigWidthPx, 10) || 280;
-                        document.getElementById('sigWidthSlider').value = sigWidthPx;
-                        document.getElementById('sigSizeLabel').textContent = sigWidthPx + 'px';
-                    }
-                    if (env.sigLayout !== undefined) {
-                        document.getElementById('sigLayoutSelect').value = env.sigLayout;
-                    }
-                }
-                if (stateObj.tableData) {
-                    tableData = Object.assign({
-                        flota: [],
-                        preventivos: [],
-                        cctv: [],
-                        intervenciones: [],
-                        pendientes_its: [],
-                        tics: [],
-                        pendientes_tics: []
-                    }, stateObj.tableData);
-                }
-                if (Array.isArray(stateObj.savedSignatures)) {
+
+                if (Array.isArray(stateObj.savedSignatures) && stateObj.savedSignatures.length > 0) {
                     savedSignatures = stateObj.savedSignatures;
                 }
 
-                syncEnvelopeUI();
-                updateBadges();
-                renderSectionRowsList();
-                renderSavedSignaturesList();
-                renderEmailPreview();
-                saveToLocalMirror();
-
-                if (lastUpdatedAt > 0) {
-                    const dt = new Date(lastUpdatedAt);
-                    document.getElementById('lastSyncInfo').textContent = 'Último guardado en nube: ' + dt.toLocaleTimeString();
+                if (Array.isArray(stateObj.techniciansList) && stateObj.techniciansList.length > 0) {
+                    stateObj.techniciansList.forEach(t => {
+                        if (t && !techniciansList.includes(t)) techniciansList.push(t);
+                    });
+                    // Mantener la lista sincronizada con la nube
+                    techniciansList = [...stateObj.techniciansList];
                 }
+
+                if (stateObj.profilesByTech && typeof stateObj.profilesByTech === 'object') {
+                    Object.keys(stateObj.profilesByTech).forEach(techKey => {
+                        const cloudProf = stateObj.profilesByTech[techKey];
+                        const localProf = profilesByTech[techKey];
+                        const cTs = parseTimestamp(cloudProf?.updatedAt);
+                        const lTs = parseTimestamp(localProf?.updatedAt);
+                        if (!localProf || !initialCloudSyncDone || cTs >= lTs) {
+                            profilesByTech[techKey] = cloudProf;
+                        }
+                        if (!techniciansList.includes(techKey)) {
+                            techniciansList.push(techKey);
+                        }
+                    });
+                } else if (stateObj.tableData || stateObj.envelope) {
+                    // Migración automática si el estado en la nube venía de la versión anterior sin perfiles
+                    const targetTech = techniciansList[0] || 'Mateo Pinto';
+                    profilesByTech[targetTech] = {
+                        updatedAt: incomingTs || Date.now(),
+                        envelope: stateObj.envelope || getDefaultEnvelope(),
+                        tableData: Object.assign(getEmptyTableData(), stateObj.tableData || {}),
+                        activeSigIds: savedSignatures.filter(s => s.active).map(s => s.id)
+                    };
+                }
+
+                if (!techniciansList.includes(currentTech)) {
+                    currentTech = techniciansList[0] || 'Mateo Pinto';
+                }
+
+                loadTechProfileIntoDOM(currentTech);
+                saveToLocalMirror();
             } finally {
                 isPulling = false;
             }
@@ -1013,8 +1228,9 @@ function doPost(e) {
         function scheduleCloudSave() {
             if (isPulling) return;
             lastUpdatedAt = Date.now();
+            saveCurrentTechToMemory(lastUpdatedAt);
             const dt = new Date(lastUpdatedAt);
-            document.getElementById('lastSyncInfo').textContent = 'Editado: ' + dt.toLocaleTimeString();
+            document.getElementById('lastSyncInfo').textContent = `Turno de ${currentTech} (Editado: ${dt.toLocaleTimeString()})`;
             saveToLocalMirror();
 
             const url = getCloudUrl();
@@ -1048,6 +1264,8 @@ function doPost(e) {
                     action: 'save_state',
                     state: stateSnapshot,
                     updatedAt: stateSnapshot.updatedAt,
+                    techniciansList: stateSnapshot.techniciansList,
+                    profilesByTech: stateSnapshot.profilesByTech,
                     envelope: stateSnapshot.envelope,
                     tableData: stateSnapshot.tableData,
                     savedSignatures: stateSnapshot.savedSignatures
@@ -1069,11 +1287,11 @@ function doPost(e) {
 
         function unwrapCloudResponse(rawJson) {
             if (!rawJson || typeof rawJson !== 'object') return null;
-            if (rawJson.tableData || rawJson.envelope) return rawJson;
-            if (rawJson.state && (rawJson.state.tableData || rawJson.state.envelope)) return rawJson.state;
+            if (rawJson.profilesByTech || rawJson.tableData || rawJson.envelope) return rawJson;
+            if (rawJson.state && (rawJson.state.profilesByTech || rawJson.state.tableData || rawJson.state.envelope)) return rawJson.state;
             if (rawJson.data) {
-                if (rawJson.data.tableData || rawJson.data.envelope) return rawJson.data;
-                if (rawJson.data.state && (rawJson.data.state.tableData || rawJson.data.state.envelope)) return rawJson.data.state;
+                if (rawJson.data.profilesByTech || rawJson.data.tableData || rawJson.data.envelope) return rawJson.data;
+                if (rawJson.data.state && (rawJson.data.state.profilesByTech || rawJson.data.state.tableData || rawJson.data.state.envelope)) return rawJson.data.state;
             }
             return null;
         }
@@ -1240,8 +1458,8 @@ function doPost(e) {
                             <label>Tipo</label>
                             <input type="text" id="f_tipo" list="list_cctv_tipo" value="Acompañamiento" oninput="suggestCctvObs()">
                             <datalist id="list_cctv_tipo">
-                                <option value="Comportamiento">
                                 <option value="Acompañamiento">
+                                <option value="Comportamiento">
                                 <option value="Entrega de video">
                             </datalist>
                         </div>
@@ -1252,7 +1470,7 @@ function doPost(e) {
                     </div>
                     <div class="field-group">
                         <label>Observacion</label>
-                        <input type="text" id="f_obs" value="Se realiza inspección por comportamiento - ">
+                        <input type="text" id="f_obs" value="Se realiza acompañamiento en camaras - ">
                     </div>
                     <button class="btn btn-add" onclick="addRowCctv()">+ Agregar a CCTV</button>
                 `;
@@ -1298,10 +1516,17 @@ function doPost(e) {
                     <button class="btn btn-add" onclick="addRowIntervenciones('${activeSection}')">+ Agregar a ${titleBtn}</button>
                 `;
             } else if (activeSection === 'tics') {
+                const presetAdded = hasQuickTicsPreset();
+                const btnStyle = presetAdded
+                    ? 'background:#ffebee;color:#c62828;border:1px solid #ef5350;width:100%;justify-content:center;font-size:0.76rem;'
+                    : 'background:#e8f5e9;color:#1b5e20;border:1px solid #2e7d32;width:100%;justify-content:center;font-size:0.76rem;';
+                const btnText = presetAdded
+                    ? '🗑️ Quitar bloque habitual TI (Data, Peso, Impresoras)'
+                    : '⚡ Agregar bloque habitual TI (Data, Peso, Impresoras)';
                 html = `
                     <div style="margin-bottom:8px;display:flex;gap:6px;">
-                        <button class="btn btn-outline-light" style="background:#e8f5e9;color:#1b5e20;border:1px solid #2e7d32;width:100%;justify-content:center;font-size:0.76rem;" onclick="addQuickTicsPreset()">
-                            ⚡ Agregar bloque habitual TI (Data, Peso, Impresoras)
+                        <button class="btn btn-outline-light" style="${btnStyle}" onclick="addQuickTicsPreset()">
+                            ${btnText}
                         </button>
                     </div>
                     <div class="field-row-2">
@@ -1371,7 +1596,7 @@ function doPost(e) {
             const t = document.getElementById('f_tipo').value.toLowerCase();
             const obs = document.getElementById('f_obs');
             if (t.includes('entrega')) obs.value = 'Se realiza entrega de video solicitado por ';
-            else if (t.includes('comportamiento') || t.includes('acompañamiento')) obs.value = 'Se realiza inspección por comportamiento - ';
+            else if (t.includes('comportamiento') || t.includes('acompañamiento')) obs.value = 'Se realiza acompañamiento en camaras - ';
         }
 
         // =========================================================================
@@ -1442,14 +1667,37 @@ function doPost(e) {
             onTableDataChanged();
         }
 
+        function hasQuickTicsPreset() {
+            const rows = tableData.tics || [];
+            const presetNovedades = ['data', 'peso', 'impresoras'];
+            return rows.some(r => r._isPresetTI || (
+                (r.usuario || '').trim().toUpperCase() === 'TI' &&
+                presetNovedades.includes((r.novedad || '').trim().toLowerCase())
+            ));
+        }
+
         function addQuickTicsPreset() {
-            tableData.tics.push(
-                { usuario: 'TI', novedad: 'Data', ticket: 'N/A', estado: 'Ejecutado', obs: 'Se descarga data de tableros' },
-                { usuario: 'TI', novedad: 'Peso', ticket: 'N/A', estado: 'Ejecutado', obs: 'Se envia correo de peso' },
-                { usuario: 'TI', novedad: 'Impresoras', ticket: 'N/A', estado: 'Ejecutado', obs: 'Se realiza consolidado de impresoras' }
-            );
-            onTableDataChanged();
-            showToast('Tareas de TICS agregadas');
+            const presetNovedades = ['data', 'peso', 'impresoras'];
+            if (hasQuickTicsPreset()) {
+                tableData.tics = (tableData.tics || []).filter(r => !(
+                    r._isPresetTI || (
+                        (r.usuario || '').trim().toUpperCase() === 'TI' &&
+                        presetNovedades.includes((r.novedad || '').trim().toLowerCase())
+                    )
+                ));
+                onTableDataChanged();
+                if (activeSection === 'tics') renderSectionForm();
+                showToast('🗑️ Bloque habitual de TICS quitado');
+            } else {
+                tableData.tics.push(
+                    { usuario: 'TI', novedad: 'Data', ticket: 'N/A', estado: 'Ejecutado', obs: 'Se descarga data de tableros', _isPresetTI: true },
+                    { usuario: 'TI', novedad: 'Peso', ticket: 'N/A', estado: 'Ejecutado', obs: 'Se envia correo de peso', _isPresetTI: true },
+                    { usuario: 'TI', novedad: 'Impresoras', ticket: 'N/A', estado: 'Ejecutado', obs: 'Se realiza consolidado de impresoras', _isPresetTI: true }
+                );
+                onTableDataChanged();
+                if (activeSection === 'tics') renderSectionForm();
+                showToast('⚡ Tareas habituales de TICS agregadas');
+            }
         }
 
         function addRowPendientesTics() {
@@ -1486,6 +1734,7 @@ function doPost(e) {
         function deleteRow(secKey, index) {
             tableData[secKey].splice(index, 1);
             onTableDataChanged();
+            if (secKey === 'tics' && activeSection === 'tics') renderSectionForm();
         }
 
         // --- DRAG AND DROP HANDLERS PARA INTERCAMBIAR / REORDENAR ÍTEMS ---
@@ -1733,8 +1982,8 @@ function doPost(e) {
                     <td style="${cellBase}height:21px;white-space:nowrap;">${renderMovilCell(r.movil)}</td>
                     <td style="${cellBase}">${r.tipo || '&nbsp;'}</td>
                     <td colspan="3" style="${cellBase}">${r.obs || '&nbsp;'}</td>
-                    <td colspan="2" style="${cellBase}font-weight:bold;">${r.ot || '&nbsp;'}</td>
-                    <td style="${cellBase}">${r.ticket || '&nbsp;'}</td>
+                    <td colspan="2" style="${cellBase}font-weight:bold;white-space:nowrap;">${renderStackedCodeCell(r.ot)}</td>
+                    <td style="${cellBase}white-space:nowrap;">${renderStackedCodeCell(r.ticket)}</td>
                 </tr>`;
             });
 
@@ -1752,7 +2001,7 @@ function doPost(e) {
                 trs += `<tr data-row-type="data">
                     <td style="${cellBase}height:21px;white-space:nowrap;">${renderMovilCell(r.movil)}</td>
                     <td style="${cellBase}">${r.tipo || '&nbsp;'}</td>
-                    <td style="${cellBase}">${r.ticket || '&nbsp;'}</td>
+                    <td style="${cellBase}white-space:nowrap;">${renderStackedCodeCell(r.ticket)}</td>
                     <td colspan="5" style="${cellBase}">${r.obs || '&nbsp;'}</td>
                 </tr>`;
             });
@@ -1776,9 +2025,9 @@ function doPost(e) {
                     <td style="${cellBase}">${r.tipo || '&nbsp;'}</td>
                     <td style="${cellBase}">${r.estado || '&nbsp;'}</td>
                     <td colspan="2" style="${cellBase}">${r.obs || '&nbsp;'}</td>
-                    <td style="${cellBase}">${r.rt || '&nbsp;'}</td>
-                    <td style="${cellBase}">${r.ot || '&nbsp;'}</td>
-                    <td style="${cellBase}">${r.ticket || '&nbsp;'}</td>
+                    <td style="${cellBase}white-space:nowrap;">${renderStackedCodeCell(r.rt)}</td>
+                    <td style="${cellBase}white-space:nowrap;">${renderStackedCodeCell(r.ot)}</td>
+                    <td style="${cellBase}white-space:nowrap;">${renderStackedCodeCell(r.ticket)}</td>
                 </tr>`;
             });
 
@@ -1799,9 +2048,9 @@ function doPost(e) {
                     <td style="${cellBase}">${r.tipo || '&nbsp;'}</td>
                     <td style="${cellBase}">${r.estado || '&nbsp;'}</td>
                     <td colspan="2" style="${cellBase}">${r.obs || '&nbsp;'}</td>
-                    <td style="${cellBase}">${r.rt || '&nbsp;'}</td>
-                    <td style="${cellBase}">${r.ot || '&nbsp;'}</td>
-                    <td style="${cellBase}">${r.ticket || '&nbsp;'}</td>
+                    <td style="${cellBase}white-space:nowrap;">${renderStackedCodeCell(r.rt)}</td>
+                    <td style="${cellBase}white-space:nowrap;">${renderStackedCodeCell(r.ot)}</td>
+                    <td style="${cellBase}white-space:nowrap;">${renderStackedCodeCell(r.ticket)}</td>
                 </tr>`;
             });
 
@@ -2310,14 +2559,14 @@ function doPost(e) {
         // =========================================================================
         window.addEventListener('DOMContentLoaded', async () => {
             const mirrorJson = localStorage.getItem('esomos_cloud_mirror_v4') || localStorage.getItem('esomos_cloud_mirror_v3');
+            renderTechDropdown();
             if (mirrorJson) {
                 try {
                     const parsed = JSON.parse(mirrorJson);
                     applyFullStateObject(parsed);
                 } catch (e) {}
             } else {
-                updateBadges();
-                renderEmailPreview();
+                loadTechProfileIntoDOM(currentTech);
             }
 
             switchSection('preventivos');
